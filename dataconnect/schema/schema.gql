@@ -1,0 +1,59 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+  country: String
+  favoriteTeam: Team
+}
+
+type League @table {
+  name: String!
+  country: String!
+  createdAt: Timestamp!
+  logoUrl: String
+  description: String
+}
+
+type Team @table {
+  name: String!
+  shortName: String!
+  createdAt: Timestamp!
+  logoUrl: String
+  city: String
+  stadium: String
+}
+
+type Match @table {
+  league: League!
+  homeTeam: Team!
+  awayTeam: Team!
+  matchDate: Timestamp!
+  status: String!
+  createdAt: Timestamp!
+  homeScore: Int
+  awayScore: Int
+  venue: String
+  referee: String
+}
+
+type Prognostic @table {
+  user: User!
+  match: Match!
+  predictedOutcome: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  predictedHomeScore: Int
+  predictedAwayScore: Int
+  notes: String
+}
+
+type LeaderboardEntry @table {
+  user: User!
+  totalPoints: Int!
+  rank: Int!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  correctPredictionsCount: Int
+  totalPredictionsCount: Int
+}

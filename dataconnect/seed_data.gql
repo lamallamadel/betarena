@@ -1,0 +1,85 @@
+mutation CreateDemoData @auth(level: PUBLIC, insecureReason: "This mutation is for seeding demo data and doesn't require authentication") @transaction {
+  team_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Team A",
+      shortName: "TMA",
+      createdAt: "2024-04-03T00:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      name: "Team B",
+      shortName: "TMB",
+      createdAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+  league_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      name: "League A",
+      country: "USA",
+      createdAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+  user_insertMany(data: [
+    {
+      id: "750e8400-e29b-41d4-a716-446655440000",
+      displayName: "User A",
+      createdAt: "2024-04-03T00:00:00Z"
+    },
+    {
+      id: "750e8400-e29b-41d4-a716-446655440001",
+      displayName: "User B",
+      createdAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+  match_insertMany(data: [
+    {
+      id: "850e8400-e29b-41d4-a716-446655440000",
+      homeTeamId: "550e8400-e29b-41d4-a716-446655440000",
+      awayTeamId: "550e8400-e29b-41d4-a716-446655440001",
+      leagueId: "650e8400-e29b-41d4-a716-446655440000",
+      status: "Scheduled",
+      matchDate: "2024-04-05T19:00:00Z",
+      createdAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+  prognostic_insertMany(data: [
+    {
+      id: "950e8400-e29b-41d4-a716-446655440000",
+      userId: "750e8400-e29b-41d4-a716-446655440000",
+      matchId: "850e8400-e29b-41d4-a716-446655440000",
+      predictedOutcome: "Draw",
+      createdAt: "2024-04-03T00:00:00Z"
+    },
+    {
+      id: "950e8400-e29b-41d4-a716-446655440001",
+      userId: "750e8400-e29b-41d4-a716-446655440001",
+      matchId: "850e8400-e29b-41d4-a716-446655440000",
+      predictedOutcome: "Home Win",
+      createdAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+  leaderboardEntry_insertMany(data: [
+    {
+      id: "a50e8400-e29b-41d4-a716-446655440000",
+      userId: "750e8400-e29b-41d4-a716-446655440000",
+      totalPoints: 10,
+      rank: 1,
+      correctPredictionsCount: 2,
+      totalPredictionsCount: 5,
+      createdAt: "2024-04-03T00:00:00Z",
+      updatedAt: "2024-04-03T00:00:00Z"
+    },
+    {
+      id: "a50e8400-e29b-41d4-a716-446655440001",
+      userId: "750e8400-e29b-41d4-a716-446655440001",
+      totalPoints: 5,
+      rank: 2,
+      correctPredictionsCount: 1,
+      totalPredictionsCount: 5,
+      createdAt: "2024-04-03T00:00:00Z",
+      updatedAt: "2024-04-03T00:00:00Z"
+    }
+  ])
+}
