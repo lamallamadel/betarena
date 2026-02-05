@@ -13,6 +13,22 @@ export interface UserProfile {
   xp: number;
   dailyShareCount: number;
   lastShareDate: string;
+  // Optional extended fields
+  id?: string;
+  avatar?: string;
+  frame?: string;
+  badges?: string[];
+  stats?: {
+    totalPredictions: number;
+    winRate: string;
+    precision: string;
+    rank: string;
+  };
+  predictions?: any[];
+  inventory?: string[];
+  referralCode?: string;
+  referredBy?: string;
+  lastDailyBonus?: number;
 }
 
 export interface Match {
@@ -24,4 +40,23 @@ export interface Match {
   awayScore: number;
   status: MatchStatus;
   minute: number;
+}
+
+export interface RichUserProfile {
+  username: string;
+  avatar: string;
+  frame: string;
+  level: number;
+  xp: number;
+  coins: number;
+  badges: string[];
+  stats: {
+    totalPredictions: number;
+    winRate: string;
+    precision: string;
+    rank: string;
+  };
+  referralCode: string;
+  predictions: any[];
+  inventory?: string[];
 }

@@ -1,22 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {type User, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { type User, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db, APP_ID } from '../config/firebase';
 
-// On définit le type ici ou on l'importe de ../types
-export interface UserProfile {
-    id: string;
-    coins: number;
-    pseudo: string;
-    level: number;
-    xp: number;
-    inventory: string[];
-    referralCode: string;
-    referredBy?: string;
-    lastDailyBonus: number;
-    dailyShareCount: number;
-    lastShareDate: string;
-}
+import type { UserProfile } from '../types/types';
 
 interface AuthContextType {
     user: User | null;
@@ -54,7 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const unsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
                 // Le profil existe -> On charge les données et on cache l'onboarding
-                setProfile({ id: user.uid, ...docSnap.data() } as UserProfile);
+                setProfile({ uid: user.uid, id: user.uid, ...docSnap.data() } as UserProfile);
                 setIsOnboarding(false);
             } else {
                 // Le profil n'existe pas -> On déclenche le mode Onboarding

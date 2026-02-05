@@ -136,12 +136,6 @@ const MOCK_GROUPS = [
     { id: 2, name: 'Champions League', members: 128, icon: '🏆', desc: 'Pronostics sur la coupe d\'Europe.' },
 ];
 
-const MOCK_LEADERBOARD = [
-    { rank: 1, user: 'PronoMaster', coins: 15420, level: 12, avatar: '🤴', trend: 'up' },
-    { rank: 2, user: 'Architecte_UX', coins: 2500, level: 4, avatar: '🦁', trend: 'stable' },
-    { rank: 3, user: 'Footix_Pro', coins: 1980, level: 7, avatar: '🥷', trend: 'down' },
-];
-
 // --- DONNÉES MOCK POUR LES TENDANCES DE PRONOSTICS ---
 const MOCK_PREDICTION_STATS = {
     1: { total: 1247, home: 62, draw: 8, away: 30 }, // PSG-OM
@@ -182,6 +176,37 @@ const COMPETITION_RULES = {
         include_extra_time: true
     }
 };
+
+// --- DONNÉES SAISON & LEADERBOARD (RG-05) ---
+const CURRENT_SEASON = {
+    id: 'S2025-2026',
+    name: 'Saison 2025-2026',
+    start_date: '2025-08-01',
+    end_date: '2026-05-31',
+    active: true
+};
+
+const MOCK_LEADERBOARD_GLOBAL = [
+    { rank: 1, user: 'PronoMaster', coins: 15420, season_coins: 3240, level: 12, avatar: '🤴', trend: 'up', total_predictions: 342, win_rate: 72 },
+    { rank: 2, user: 'Architecte_UX', coins: 2500, season_coins: 1850, level: 4, avatar: '🦁', trend: 'stable', total_predictions: 124, win_rate: 68 },
+    { rank: 3, user: 'Footix_Pro', coins: 1980, season_coins: 980, level: 7, avatar: '🥷', trend: 'down', total_predictions: 89, win_rate: 55 },
+    { rank: 4, user: 'BalondOr', coins: 1750, season_coins: 1200, level: 6, avatar: '⚽', trend: 'up', total_predictions: 156, win_rate: 61 },
+    { rank: 5, user: 'LigueExpert', coins: 1650, season_coins: 950, level: 5, avatar: '🎯', trend: 'stable', total_predictions: 98, win_rate: 64 },
+    { rank: 6, user: 'ParisLegend', coins: 1420, season_coins: 720, level: 8, avatar: '🔴', trend: 'down', total_predictions: 201, win_rate: 58 },
+    { rank: 7, user: 'UCLKing', coins: 1380, season_coins: 880, level: 7, avatar: '👑', trend: 'up', total_predictions: 134, win_rate: 66 },
+    { rank: 8, user: 'TacticalGenius', coins: 1290, season_coins: 690, level: 6, avatar: '🧠', trend: 'stable', total_predictions: 112, win_rate: 62 },
+];
+
+const MOCK_LEADERBOARD_SEASON = [
+    { rank: 1, user: 'Architecte_UX', coins: 1850, season_coins: 1850, level: 4, avatar: '🦁', trend: 'up', total_predictions: 67, win_rate: 71 },
+    { rank: 2, user: 'PronoMaster', coins: 3240, season_coins: 3240, level: 12, avatar: '🤴', trend: 'stable', total_predictions: 89, win_rate: 69 },
+    { rank: 3, user: 'BalondOr', coins: 1200, season_coins: 1200, level: 6, avatar: '⚽', trend: 'up', total_predictions: 54, win_rate: 72 },
+    { rank: 4, user: 'LigueExpert', coins: 950, season_coins: 950, level: 5, avatar: '🎯', trend: 'down', total_predictions: 43, win_rate: 67 },
+    { rank: 5, user: 'Footix_Pro', coins: 980, season_coins: 980, level: 7, avatar: '🥷', trend: 'stable', total_predictions: 38, win_rate: 58 },
+    { rank: 6, user: 'UCLKing', coins: 880, season_coins: 880, level: 7, avatar: '👑', trend: 'up', total_predictions: 49, win_rate: 65 },
+    { rank: 7, user: 'ParisLegend', coins: 720, season_coins: 720, level: 8, avatar: '🔴', trend: 'down', total_predictions: 56, win_rate: 55 },
+    { rank: 8, user: 'TacticalGenius', coins: 690, season_coins: 690, level: 6, avatar: '🧠', trend: 'stable', total_predictions: 38, win_rate: 61 },
+];
 
 // --- COMPOSANTS UI ATOMIQUES ---
 
@@ -260,10 +285,18 @@ const App = () => {
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
 
+    // Nouveaux states pour le Leaderboard (RG-05)
+    const [leaderboardType, setLeaderboardType] = useState('season'); // 'season' ou 'global'
+
+    // Nouveaux states pour Phase 3
+    const [predictionFilter, setPredictionFilter] = useState('all'); // 'all', 'won', 'lost', 'pending', 'void'
+    const [showConfetti, setShowConfetti] = useState(false);
+
     // --- STATE USER FUSIONNÉ (Structure du Code B + Inventory du Code A) ---
     const [user, setUser] = useState({
         username: 'Architecte_UX',
-        coins: 2500,
+        coins: 2500, // Coins totaux (Global)
+        season_coins: 1850, // Coins de la saison en cours (RG-05)
         xp: 65,
         level: 4,
         avatar: '🦁',
@@ -274,7 +307,8 @@ const App = () => {
         stats: {
             totalPredictions: 124,
             winRate: '68%',
-            rank: '#2',
+            rank: '#2', // Rang global
+            seasonRank: '#1', // Rang saison
             precision: '74%'
         },
         predictions: [] // Structure: { id, match, type, selection, odd, amount, gain, status, is_settled, settled_at, match_final_score }
@@ -501,11 +535,20 @@ const App = () => {
             // Mettre à jour les coins
             const newCoins = prev.coins + totalGains + totalRefunds;
 
+            // RG-05: Alimenter simultanément Global_Score ET Season_Score
+            const newSeasonCoins = prev.season_coins + totalGains + totalRefunds;
+
             // Toast notification
             if (totalGains > 0) {
                 setToastMessage(`🎉 +${totalGains} coins gagnés !`);
                 setShowToast(true);
                 setTimeout(() => setShowToast(false), 4000);
+
+                // Animation confettis pour les gros gains
+                if (totalGains >= 200) {
+                    setShowConfetti(true);
+                    setTimeout(() => setShowConfetti(false), 3000);
+                }
             } else if (totalRefunds > 0) {
                 setToastMessage(`↩️ ${totalRefunds} coins remboursés`);
                 setShowToast(true);
@@ -515,6 +558,7 @@ const App = () => {
             return {
                 ...prev,
                 coins: newCoins,
+                season_coins: newSeasonCoins, // RG-05: Mise à jour simultanée
                 predictions: updatedPredictions
             };
         });
@@ -547,6 +591,43 @@ const App = () => {
         acc[match.competition].push(match);
         return acc;
     }, {});
+
+    // --- FONCTIONS UTILITAIRES ---
+
+    // RG-04: Tri du leaderboard (Coins décroissant, puis Alphabétique)
+    const sortLeaderboard = (players) => {
+        return [...players].sort((a, b) => {
+            // 1. Tri par coins (décroissant)
+            if (b.coins !== a.coins) {
+                return b.coins - a.coins;
+            }
+            // 2. Tri alphabétique en cas d'égalité stricte
+            return a.user.localeCompare(b.user);
+        }).map((player, index) => ({
+            ...player,
+            rank: index + 1
+        }));
+    };
+
+    // Calculer les statistiques du joueur
+    const calculateUserStats = () => {
+        const settledPredictions = user.predictions.filter(p => p.is_settled);
+        const wonPredictions = settledPredictions.filter(p => p.status === 'WON');
+
+        return {
+            total: user.predictions.length,
+            settled: settledPredictions.length,
+            won: wonPredictions.length,
+            lost: settledPredictions.filter(p => p.status === 'LOST').length,
+            void: settledPredictions.filter(p => p.status === 'VOID').length,
+            pending: user.predictions.filter(p => !p.is_settled).length,
+            winRate: settledPredictions.length > 0
+                ? Math.round((wonPredictions.length / settledPredictions.length) * 100)
+                : 0,
+            totalGains: wonPredictions.reduce((sum, p) => sum + (p.gain || 0), 0),
+            totalLosses: settledPredictions.filter(p => p.status === 'LOST').reduce((sum, p) => sum + p.amount, 0)
+        };
+    };
 
     // --- SOUS-COMPOSANTS ---
 
@@ -593,6 +674,28 @@ const App = () => {
                 <div className="bg-slate-900 border-2 border-emerald-500 px-6 py-3 rounded-2xl shadow-2xl shadow-emerald-500/20 backdrop-blur-md">
                     <p className="text-sm font-black text-white">{message}</p>
                 </div>
+            </div>
+        );
+    };
+
+    const ConfettiAnimation = ({ show }) => {
+        if (!show) return null;
+
+        return (
+            <div className="fixed inset-0 z-[250] pointer-events-none overflow-hidden">
+                {[...Array(50)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute w-2 h-2 animate-confetti"
+                        style={{
+                            left: `${Math.random() * 100}%`,
+                            top: '-10px',
+                            background: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'][Math.floor(Math.random() * 5)],
+                            animationDelay: `${Math.random() * 0.5}s`,
+                            animationDuration: `${2 + Math.random() * 2}s`
+                        }}
+                    />
+                ))}
             </div>
         );
     };
@@ -1249,6 +1352,78 @@ const App = () => {
                         <span className="text-[9px] font-black text-emerald-500 cursor-pointer">TOUT VOIR</span>
                     </div>
 
+                    {/* Statistiques Détaillées */}
+                    {user.predictions.length > 0 && (() => {
+                        const stats = calculateUserStats();
+                        return (
+                            <div className="bg-slate-900 border border-slate-800 p-5 rounded-[32px] mb-6">
+                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">📊 Statistiques</h5>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    <div className="bg-slate-950 p-3 rounded-2xl text-center">
+                                        <span className="text-2xl font-black text-emerald-500 block">{stats.won}</span>
+                                        <span className="text-[8px] font-bold text-slate-500 uppercase">Gagnés</span>
+                                    </div>
+                                    <div className="bg-slate-950 p-3 rounded-2xl text-center">
+                                        <span className="text-2xl font-black text-red-500 block">{stats.lost}</span>
+                                        <span className="text-[8px] font-bold text-slate-500 uppercase">Perdus</span>
+                                    </div>
+                                    <div className="bg-slate-950 p-3 rounded-2xl text-center">
+                                        <span className="text-2xl font-black text-yellow-500 block">{stats.pending}</span>
+                                        <span className="text-[8px] font-bold text-slate-500 uppercase">En cours</span>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
+                                        <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Gains totaux</span>
+                                        <span className="text-lg font-black text-emerald-500">+{stats.totalGains}</span>
+                                    </div>
+                                    <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+                                        <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Pertes totales</span>
+                                        <span className="text-lg font-black text-red-500">-{stats.totalLosses}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Filtres */}
+                    {user.predictions.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 px-2">
+                            {[
+                                { value: 'all', label: 'Tous', icon: '📋' },
+                                { value: 'won', label: 'Gagnés', icon: '✅' },
+                                { value: 'lost', label: 'Perdus', icon: '❌' },
+                                { value: 'pending', label: 'En cours', icon: '⏳' },
+                                { value: 'void', label: 'Annulés', icon: '↩️' }
+                            ].map(filter => {
+                                const stats = calculateUserStats();
+                                const count = filter.value === 'all' ? stats.total :
+                                    filter.value === 'won' ? stats.won :
+                                        filter.value === 'lost' ? stats.lost :
+                                            filter.value === 'pending' ? stats.pending :
+                                                stats.void;
+
+                                return (
+                                    <button
+                                        key={filter.value}
+                                        onClick={() => setPredictionFilter(filter.value)}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap transition-all ${predictionFilter === filter.value
+                                                ? 'bg-emerald-500 text-black scale-105 shadow-lg'
+                                                : 'bg-slate-900 border border-slate-800 text-slate-500'
+                                            }`}
+                                    >
+                                        <span>{filter.icon}</span>
+                                        <span>{filter.label}</span>
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${predictionFilter === filter.value ? 'bg-black/20' : 'bg-slate-950'
+                                            }`}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {/* BOUTONS DE SIMULATION (DEV MODE) */}
                     {user.predictions.some(p => !p.is_settled) && (
                         <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-2 border-purple-500/30 p-4 rounded-[24px] mb-4">
@@ -1285,85 +1460,103 @@ const App = () => {
                     )}
 
                     <div className="space-y-3">
-                        {user.predictions.length > 0 ? user.predictions.map(p => (
-                            <div key={p.id} className={`bg-slate-900 border-2 p-5 rounded-[32px] flex items-center justify-between group hover:border-slate-700 transition-all ${p.status === 'WON' ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent' :
-                                    p.status === 'LOST' ? 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-transparent' :
-                                        p.status === 'VOID' ? 'border-slate-700 bg-slate-950' :
-                                            'border-slate-800'
-                                }`}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg ${p.status === 'WON' ? 'bg-emerald-500 text-black' :
-                                            p.status === 'LOST' ? 'bg-red-500 text-white' :
-                                                p.status === 'VOID' ? 'bg-slate-700 text-slate-400' :
-                                                    'bg-slate-950 text-yellow-500 animate-pulse'
-                                        }`}>
-                                        {p.status === 'WON' ? '✓' :
-                                            p.status === 'LOST' ? '✗' :
-                                                p.status === 'VOID' ? '↩' :
-                                                    '⏳'}
-                                    </div>
-                                    <div>
-                                        <h5 className="text-xs font-black text-white uppercase tracking-tight mb-1">{p.match}</h5>
+                        {(() => {
+                            // Filtrer les prédictions selon le filtre actif
+                            const filteredPredictions = user.predictions.filter(p => {
+                                if (predictionFilter === 'all') return true;
+                                if (predictionFilter === 'won') return p.status === 'WON';
+                                if (predictionFilter === 'lost') return p.status === 'LOST';
+                                if (predictionFilter === 'pending') return p.status === 'PENDING';
+                                if (predictionFilter === 'void') return p.status === 'VOID';
+                                return true;
+                            });
 
-                                        {/* Détail du résultat si résolu */}
-                                        {p.is_settled && p.match_final_score && (
-                                            <p className="text-[9px] font-bold text-slate-400 mb-1">
-                                                Score final : {p.match_final_score}
-                                                {p.match_had_penalty_shootout && ' (TAB)'}
-                                                {p.match_had_extra_time && !p.match_had_penalty_shootout && ' (a.p.)'}
+                            if (filteredPredictions.length === 0) {
+                                return (
+                                    <div className="text-center text-slate-600 text-xs py-10 font-bold uppercase tracking-widest">
+                                        Aucun pari {predictionFilter !== 'all' ? predictionFilter : ''}
+                                    </div>
+                                );
+                            }
+
+                            return filteredPredictions.map(p => (
+                                <div key={p.id} className={`bg-slate-900 border-2 p-5 rounded-[32px] flex items-center justify-between group hover:border-slate-700 transition-all ${p.status === 'WON' ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent' :
+                                        p.status === 'LOST' ? 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-transparent' :
+                                            p.status === 'VOID' ? 'border-slate-700 bg-slate-950' :
+                                                'border-slate-800'
+                                    }`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg ${p.status === 'WON' ? 'bg-emerald-500 text-black' :
+                                                p.status === 'LOST' ? 'bg-red-500 text-white' :
+                                                    p.status === 'VOID' ? 'bg-slate-700 text-slate-400' :
+                                                        'bg-slate-950 text-yellow-500 animate-pulse'
+                                            }`}>
+                                            {p.status === 'WON' ? '✓' :
+                                                p.status === 'LOST' ? '✗' :
+                                                    p.status === 'VOID' ? '↩' :
+                                                        '⏳'}
+                                        </div>
+                                        <div>
+                                            <h5 className="text-xs font-black text-white uppercase tracking-tight mb-1">{p.match}</h5>
+
+                                            {/* Détail du résultat si résolu */}
+                                            {p.is_settled && p.match_final_score && (
+                                                <p className="text-[9px] font-bold text-slate-400 mb-1">
+                                                    Score final : {p.match_final_score}
+                                                    {p.match_had_penalty_shootout && ' (TAB)'}
+                                                    {p.match_had_extra_time && !p.match_had_penalty_shootout && ' (a.p.)'}
+                                                </p>
+                                            )}
+
+                                            <p className="text-[10px] font-bold uppercase mt-1 flex items-center gap-1">
+                                                <span className={p.type === 'EXACT_SCORE' ? 'text-purple-400' : 'text-blue-400'}>
+                                                    {p.type === 'EXACT_SCORE' ? '🎯' : '🏆'}
+                                                </span>
+                                                <span className="text-slate-500">
+                                                    {p.type === 'EXACT_SCORE' ? 'Score' : '1N2'}: {p.selection}
+                                                </span>
+                                                <span className="text-slate-600">(@{p.odd})</span>
                                             </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        {/* Affichage du gain/perte */}
+                                        {p.status === 'WON' && (
+                                            <div className="text-base font-black text-emerald-500 mb-1">
+                                                +{p.gain}
+                                            </div>
+                                        )}
+                                        {p.status === 'LOST' && (
+                                            <div className="text-base font-black text-red-500 mb-1">
+                                                -{p.amount}
+                                            </div>
+                                        )}
+                                        {p.status === 'VOID' && (
+                                            <div className="text-xs font-black text-slate-500 mb-1">
+                                                Remboursé
+                                            </div>
+                                        )}
+                                        {p.status === 'PENDING' && (
+                                            <div className="text-xs font-black text-yellow-500 mb-1">
+                                                -{p.amount}
+                                            </div>
                                         )}
 
-                                        <p className="text-[10px] font-bold uppercase mt-1 flex items-center gap-1">
-                                            <span className={p.type === 'EXACT_SCORE' ? 'text-purple-400' : 'text-blue-400'}>
-                                                {p.type === 'EXACT_SCORE' ? '🎯' : '🏆'}
-                                            </span>
-                                            <span className="text-slate-500">
-                                                {p.type === 'EXACT_SCORE' ? 'Score' : '1N2'}: {p.selection}
-                                            </span>
-                                            <span className="text-slate-600">(@{p.odd})</span>
-                                        </p>
+                                        {/* Badge de statut */}
+                                        <span className={`text-[8px] font-black px-2 py-1 rounded inline-block uppercase tracking-widest ${p.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 animate-pulse' :
+                                                p.status === 'WON' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                                    p.status === 'LOST' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                                                        'bg-slate-800 text-slate-500 border border-slate-700'
+                                            }`}>
+                                            {p.status === 'PENDING' ? '⏳ En cours' :
+                                                p.status === 'WON' ? '✓ Gagné' :
+                                                    p.status === 'LOST' ? '✗ Perdu' :
+                                                        '↩ Annulé'}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    {/* Affichage du gain/perte */}
-                                    {p.status === 'WON' && (
-                                        <div className="text-base font-black text-emerald-500 mb-1">
-                                            +{p.gain}
-                                        </div>
-                                    )}
-                                    {p.status === 'LOST' && (
-                                        <div className="text-base font-black text-red-500 mb-1">
-                                            -{p.amount}
-                                        </div>
-                                    )}
-                                    {p.status === 'VOID' && (
-                                        <div className="text-xs font-black text-slate-500 mb-1">
-                                            Remboursé
-                                        </div>
-                                    )}
-                                    {p.status === 'PENDING' && (
-                                        <div className="text-xs font-black text-yellow-500 mb-1">
-                                            -{p.amount}
-                                        </div>
-                                    )}
-
-                                    {/* Badge de statut */}
-                                    <span className={`text-[8px] font-black px-2 py-1 rounded inline-block uppercase tracking-widest ${p.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 animate-pulse' :
-                                            p.status === 'WON' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                                                p.status === 'LOST' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                                                    'bg-slate-800 text-slate-500 border border-slate-700'
-                                        }`}>
-                                        {p.status === 'PENDING' ? '⏳ En cours' :
-                                            p.status === 'WON' ? '✓ Gagné' :
-                                                p.status === 'LOST' ? '✗ Perdu' :
-                                                    '↩ Annulé'}
-                                    </span>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="text-center text-slate-600 text-xs py-10 font-bold uppercase tracking-widest">Aucun pari pour le moment</div>
-                        )}
+                            ));
+                        })()}
                     </div>
                 </div>
             </div>
@@ -1421,33 +1614,213 @@ const App = () => {
         </div>
     );
 
-    const LeaderboardView = () => (
-        <div className="flex flex-col h-full bg-slate-950 animate-slide-up p-5 pt-12 overflow-y-auto no-scrollbar pb-24">
-            <div className="flex justify-between items-center mb-8">
-                <button onClick={() => setView('home')} className="p-2.5 bg-slate-900 rounded-full border border-slate-800"><ChevronLeft /></button>
-                <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Classement</h2>
-                <div className="w-10 h-10 bg-yellow-500/10 rounded-full flex items-center justify-center text-yellow-500 border border-yellow-500/20"><Trophy size={20} /></div>
-            </div>
-            <div className="bg-slate-900 rounded-[32px] border border-slate-800 overflow-hidden shadow-2xl">
-                {MOCK_LEADERBOARD.map((item, i) => (
-                    <div key={item.user} className={`flex items-center gap-4 p-5 border-b border-slate-800/50 last:border-0 ${item.user === user.username ? 'bg-emerald-500/5' : ''}`}>
-                        <span className={`w-6 text-sm font-black ${i === 0 ? 'text-yellow-500' : 'text-slate-600'}`}>{item.rank}</span>
-                        <AvatarDisplay avatar={item.avatar} frame="border-slate-800" level={item.level} />
-                        <div className="flex-1">
-                            <h4 className="text-xs font-black text-white uppercase">{item.user}</h4>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase">Niveau {item.level}</span>
+    const LeaderboardView = () => {
+        // Sélectionner et trier le bon leaderboard selon le type (RG-04)
+        const rawLeaderboard = leaderboardType === 'season'
+            ? MOCK_LEADERBOARD_SEASON
+            : MOCK_LEADERBOARD_GLOBAL;
+
+        const currentLeaderboard = sortLeaderboard(rawLeaderboard);
+
+        // Trouver la position de l'utilisateur
+        const userPosition = currentLeaderboard.find(p => p.user === user.username);
+        const userRank = userPosition?.rank || 99;
+        const isUserInTop10 = userRank <= 10;
+
+        return (
+            <div className="flex flex-col h-full bg-slate-950 animate-slide-up overflow-y-auto no-scrollbar pb-32">
+                {/* Header */}
+                <div className="p-6 pt-12 bg-gradient-to-b from-yellow-500/10 via-slate-950 to-slate-950 border-b border-slate-900 sticky top-0 z-20 backdrop-blur-md">
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView('home')} className="p-2.5 bg-slate-900/80 rounded-full border border-slate-800 backdrop-blur-sm">
+                            <ChevronLeft size={20} />
+                        </button>
+                        <div className="flex flex-col items-center">
+                            <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Classement</h2>
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                {leaderboardType === 'season' ? CURRENT_SEASON.name : 'Historique Complet'}
+                            </span>
                         </div>
-                        <div className="text-right text-xs font-black text-white">
-                            <div className="flex items-center gap-1 justify-end">
-                                <Coins size={10} className="text-yellow-500" />
-                                <span>{item.coins.toLocaleString()}</span>
+                        <div className="w-12 h-12 bg-yellow-500/10 rounded-full flex items-center justify-center text-yellow-500 border-2 border-yellow-500/20 shadow-lg shadow-yellow-500/10">
+                            <Trophy size={24} />
+                        </div>
+                    </div>
+
+                    {/* Toggle Saison / Global (RG-05) */}
+                    <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                        <button
+                            onClick={() => setLeaderboardType('season')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${leaderboardType === 'season'
+                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-black shadow-lg shadow-emerald-500/20 scale-105'
+                                    : 'text-slate-500 hover:text-slate-400'
+                                }`}
+                        >
+                            <Flame size={14} className={leaderboardType === 'season' ? 'animate-pulse' : ''} />
+                            Saison en cours
+                        </button>
+                        <button
+                            onClick={() => setLeaderboardType('global')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${leaderboardType === 'global'
+                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105'
+                                    : 'text-slate-500 hover:text-slate-400'
+                                }`}
+                        >
+                            <Trophy size={14} />
+                            Classement Global
+                        </button>
+                    </div>
+                </div>
+
+                {/* Podium Top 3 */}
+                <div className="px-6 py-8">
+                    <div className="flex items-end justify-center gap-4 mb-8">
+                        {/* 2ème Place */}
+                        {currentLeaderboard[1] && (
+                            <div className="flex flex-col items-center flex-1 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                                <div className="relative mb-3">
+                                    <AvatarDisplay size="w-16 h-16" avatar={currentLeaderboard[1].avatar} frame="border-slate-700" level={currentLeaderboard[1].level} />
+                                    <div className="absolute -top-2 -right-2 w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center text-white font-black text-xs border-2 border-slate-950 shadow-lg">
+                                        2
+                                    </div>
+                                </div>
+                                <h4 className="text-[10px] font-black text-white uppercase mb-1">{currentLeaderboard[1].user}</h4>
+                                <div className="flex items-center gap-1 text-slate-400">
+                                    <Coins size={10} className="text-slate-500" />
+                                    <span className="text-xs font-bold">{currentLeaderboard[1].coins.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 1ère Place - Champion */}
+                        {currentLeaderboard[0] && (
+                            <div className="flex flex-col items-center flex-1 relative animate-slide-up">
+                                <div className="absolute -top-4 text-3xl animate-bounce">👑</div>
+                                <div className="relative mb-3 mt-4">
+                                    <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
+                                    <AvatarDisplay size="w-20 h-20" avatar={currentLeaderboard[0].avatar} frame="border-yellow-500 shadow-lg shadow-yellow-500/50" level={currentLeaderboard[0].level} />
+                                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-black font-black text-sm border-2 border-slate-950 shadow-lg">
+                                        1
+                                    </div>
+                                </div>
+                                <h4 className="text-xs font-black text-yellow-500 uppercase mb-1 tracking-wide">{currentLeaderboard[0].user}</h4>
+                                <div className="flex items-center gap-1 text-yellow-500">
+                                    <Coins size={12} className="text-yellow-500" />
+                                    <span className="text-sm font-black">{currentLeaderboard[0].coins.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3ème Place */}
+                        {currentLeaderboard[2] && (
+                            <div className="flex flex-col items-center flex-1 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                                <div className="relative mb-3">
+                                    <AvatarDisplay size="w-16 h-16" avatar={currentLeaderboard[2].avatar} frame="border-orange-700" level={currentLeaderboard[2].level} />
+                                    <div className="absolute -top-2 -right-2 w-7 h-7 bg-orange-700 rounded-full flex items-center justify-center text-white font-black text-xs border-2 border-slate-950 shadow-lg">
+                                        3
+                                    </div>
+                                </div>
+                                <h4 className="text-[10px] font-black text-white uppercase mb-1">{currentLeaderboard[2].user}</h4>
+                                <div className="flex items-center gap-1 text-slate-400">
+                                    <Coins size={10} className="text-orange-700" />
+                                    <span className="text-xs font-bold">{currentLeaderboard[2].coins.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Liste Classement */}
+                <div className="px-5 pb-6">
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">
+                        Classement Complet
+                    </h3>
+                    <div className="bg-slate-900 rounded-[32px] border border-slate-800 overflow-hidden shadow-2xl">
+                        {currentLeaderboard.map((item, i) => (
+                            <div
+                                key={item.user}
+                                className={`flex items-center gap-4 p-4 border-b border-slate-800/50 last:border-0 transition-all ${item.user === user.username
+                                        ? 'bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-l-emerald-500'
+                                        : 'hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                {/* Rang */}
+                                <div className="w-8 flex flex-col items-center">
+                                    <span className={`text-sm font-black ${i === 0 ? 'text-yellow-500' :
+                                            i === 1 ? 'text-slate-400' :
+                                                i === 2 ? 'text-orange-600' :
+                                                    'text-slate-600'
+                                        }`}>
+                                        {item.rank}
+                                    </span>
+                                    {/* Indicateur de tendance */}
+                                    {item.trend === 'up' && <span className="text-emerald-500 text-xs">▲</span>}
+                                    {item.trend === 'down' && <span className="text-red-500 text-xs">▼</span>}
+                                </div>
+
+                                {/* Avatar */}
+                                <AvatarDisplay size="w-10 h-10" avatar={item.avatar} frame="border-slate-800" level={item.level} />
+
+                                {/* Info */}
+                                <div className="flex-1">
+                                    <h4 className={`text-xs font-black uppercase tracking-tight ${item.user === user.username ? 'text-emerald-500' : 'text-white'
+                                        }`}>
+                                        {item.user}
+                                        {item.user === user.username && <span className="ml-2 text-[8px] text-emerald-400">(Toi)</span>}
+                                    </h4>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase">
+                                            {item.total_predictions} paris · {item.win_rate}%
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Coins */}
+                                <div className="text-right">
+                                    <div className="flex items-center gap-1 justify-end mb-0.5">
+                                        <Coins size={12} className="text-yellow-500" />
+                                        <span className="text-sm font-black text-white">{item.coins.toLocaleString()}</span>
+                                    </div>
+                                    <span className="text-[8px] font-bold text-slate-600 uppercase">
+                                        Level {item.level}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Sticky Bar Position Utilisateur (si hors top 10) */}
+                {!isUserInTop10 && userPosition && (
+                    <div className="fixed bottom-24 left-0 right-0 z-30 px-4">
+                        <div className="max-w-md mx-auto bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-2 border-emerald-500 rounded-[32px] p-4 shadow-2xl shadow-emerald-500/20 backdrop-blur-md animate-slide-up">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase mb-1">Ton rang</span>
+                                        <span className="text-2xl font-black text-emerald-500">#{userRank}</span>
+                                    </div>
+                                    <AvatarDisplay size="w-12 h-12" avatar={user.avatar} frame={user.frame} level={user.level} />
+                                    <div>
+                                        <h4 className="text-sm font-black text-white uppercase">{user.username}</h4>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Coins size={10} className="text-yellow-500" />
+                                            <span className="text-xs font-bold text-slate-400">
+                                                {leaderboardType === 'season' ? user.season_coins : user.coins}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase block">Win Rate</span>
+                                    <span className="text-lg font-black text-emerald-500">{user.stats.winRate}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                ))}
+                )}
             </div>
-        </div>
-    );
+        );
+    };
 
     // --- RENDU APP ---
     return (
@@ -1469,6 +1842,9 @@ const App = () => {
 
                 {/* TOAST NOTIFICATIONS */}
                 <ToastNotification message={toastMessage} show={showToast} />
+
+                {/* CONFETTI ANIMATION */}
+                <ConfettiAnimation show={showConfetti} />
 
                 {/* BOTTOM NAV */}
                 <nav className="absolute bottom-0 w-full bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 px-6 py-4 pb-8 flex justify-between items-center z-40">
@@ -1495,6 +1871,11 @@ const App = () => {
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            @keyframes confetti {
+              0% { transform: translateY(0) rotateZ(0deg); opacity: 1; }
+              100% { transform: translateY(100vh) rotateZ(360deg); opacity: 0; }
+            }
+            .animate-confetti { animation: confetti linear forwards; }
         `}} />
             </div>
         </div>
