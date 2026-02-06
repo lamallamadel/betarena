@@ -52,15 +52,32 @@ const MOCK_ADMIN_MATCHES = [
     },
 ];
 
-interface AdminMatchListProps {
-    onOverrideClick: (matchId: string) => void;
+interface AdminMatch {
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    score: { home: number | null; away: number | null };
+    status: string;
+    source: 'API' | 'MANUAL';
+    isLocked: boolean;
+    betsCount: number;
+    date: string;
 }
 
-export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick }) => {
+interface AdminMatchListProps {
+    onOverrideClick: (matchId: string) => void;
+    matches?: AdminMatch[];
+    loading?: boolean;
+}
+
+export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick, matches: propsMatches, loading = false }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
-    const filteredMatches = MOCK_ADMIN_MATCHES.filter(match => {
+    // Use provided matches or fallback to mock data
+    const matchData = propsMatches && propsMatches.length > 0 ? propsMatches : MOCK_ADMIN_MATCHES;
+
+    const filteredMatches = matchData.filter(match => {
         const matchesSearch = `${match.homeTeam} ${match.awayTeam}`.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'all' || match.status === statusFilter;
         return matchesSearch && matchesStatus;
@@ -99,8 +116,8 @@ export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick 
                             key={status}
                             onClick={() => setStatusFilter(status)}
                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-colors ${statusFilter === status
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:border-slate-700'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:border-slate-700'
                                 }`}
                         >
                             {status === 'all' ? 'Tous' : status}
@@ -152,8 +169,8 @@ export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick 
                                 </td>
                                 <td className="p-4 text-center">
                                     <span className={`px-2 py-1 rounded text-[10px] font-bold ${match.source === 'API'
-                                            ? 'bg-slate-700 text-slate-300'
-                                            : 'bg-amber-500/20 text-amber-400'
+                                        ? 'bg-slate-700 text-slate-300'
+                                        : 'bg-amber-500/20 text-amber-400'
                                         }`}>
                                         {match.source}
                                     </span>
