@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-    Activity, ChevronLeft, Share2, Timer, Coins, Clock, Info, Users, Award
+    ChevronLeft, Share2, Coins, Clock, Info, Users
 } from 'lucide-react';
 import { SoccerPitch } from './SoccerPitch';
 import { PredictionTrends } from './PredictionTrends';
 import { ChatRoom } from '../social/chatRoom';
 import { useChat } from '../../hooks/useChat';
+import { useMatchLive } from '../../hooks/useMatchLive';
+import { TimelineEvent } from './TimelineEvent';
+import { MatchSimulator } from '../../utils/matchSimulator';
+import { ShareModal } from '../social/ShareModal';
 import type { RichUserProfile } from '../../types/types';
 
 interface MatchCenterViewProps {
@@ -47,6 +51,40 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
         false
     );
 
+
+
+    // SFD Phase 6: Live Data
+    // Use match.id or default if new match
+    const matchIdStr = match.id ? String(match.id) : 'match_demo';
+    const { liveMatch, events } = useMatchLive(matchIdStr, match);
+    // Use live data if available, else static props
+    const currentMatch = liveMatch || match;
+    const currentHomeScore = currentMatch.homeScore ?? match.homeScore;
+    const currentAwayScore = currentMatch.awayScore ?? match.awayScore;
+    const currentMinute = currentMatch.minute ?? match.minute;
+
+    // GOAL ANIMATION LOGIC
+    const [showGoalOverlay, setShowGoalOverlay] = useState<{ team: string, player: string } | null>(null);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const lastEventIdRef = React.useRef<string | null>(null);
+
+    useEffect(() => {
+        if (events.length > 0) {
+            const latest = events[0];
+            // Only trigger if new event AND it's a Goal AND it's not cancelled
+            if (latest.id !== lastEventIdRef.current) {
+                lastEventIdRef.current = latest.id;
+                if (latest.type === 'GOAL' && !latest.is_cancelled) {
+                    setShowGoalOverlay({
+                        team: latest.team === 'home' ? match.home : match.away,
+                        player: latest.player_main || 'Buteur'
+                    });
+                    setTimeout(() => setShowGoalOverlay(null), 3000); // Hide after 3s
+                }
+            }
+        }
+    }, [events, match.home, match.away]);
+
     const [activeLineupTeam, setActiveLineupTeam] = useState<'home' | 'away'>('home');
     const [pronoType, setPronoType] = useState<'1N2' | 'EXACT_SCORE'>('1N2');
     const [betAmount, setBetAmount] = useState(100);
@@ -66,8 +104,23 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
         }
     };
 
+
+
     return (
-        <div className="flex flex-col h-full bg-slate-950 animate-slide-up">
+        <div className="flex flex-col h-full bg-slate-950 animate-slide-up relative overflow-hidden">
+            {/* GOAL OVERLAY */}
+            {showGoalOverlay && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in zoom-in duration-300">
+                    <div className="text-6xl mb-4 animate-bounce">⚽</div>
+                    <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter drop-shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse">
+                        GOAL !!!
+                    </h1>
+                    <div className="mt-4 text-center">
+                        <p className="text-2xl font-bold text-emerald-400 uppercase tracking-widest">{showGoalOverlay.team}</p>
+                        <p className="text-white text-lg font-mono mt-1">{showGoalOverlay.player}</p>
+                    </div>
+                </div>
+            )}
             {/* Header Match (Image de fond + Score) */}
             <div className="relative h-64 w-full overflow-hidden shrink-0">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2940&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
@@ -78,7 +131,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                     <span className="px-3 py-1 rounded-full bg-slate-950/50 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {match.status === 'LIVE' ? match.time : match.competition}
                     </span>
-                    <button onClick={onShare} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors"><Share2 size={18} /></button>
+                    <button onClick={() => setShowShareModal(true)} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors"><Share2 size={18} /></button>
                 </div>
 
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-6 mt-6">
@@ -91,18 +144,20 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                         </div>
 
                         {/* SCORE */}
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-3">
-                                <span className="text-4xl font-black text-white">{match.score.h}</span>
-                                <span className="text-xs font-bold text-slate-500">-</span>
-                                <span className="text-4xl font-black text-white">{match.score.a}</span>
+                        <div className="flex flex-col items-center gap-1 w-1/3 relative z-10 box-border">
+                            <div className="bg-slate-800/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700 shadow-xl mb-2">
+                                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-widest">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live
+                                </span>
                             </div>
-                            {match.status === 'LIVE' && (
-                                <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 flex items-center gap-1.5">
-                                    <Timer size={12} className="text-emerald-500 animate-pulse" />
-                                    <span className="text-xs font-mono font-bold text-emerald-500">{match.minute}'</span>
-                                </div>
-                            )}
+                            <div className="text-5xl font-black text-white tracking-tighter tabular-nums drop-shadow-2xl flex items-center gap-2">
+                                <span className="animate-in slide-in-from-left duration-300">{currentHomeScore}</span>
+                                <span className="text-slate-600 text-3xl">:</span>
+                                <span className="animate-in slide-in-from-right duration-300">{currentAwayScore}</span>
+                            </div>
+                            <span className="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                {currentMinute}'
+                            </span>
                         </div>
 
                         {/* AWAY */}
@@ -113,6 +168,15 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* ADMIN SIMULATOR (DEV ONLY) */}
+            <div className="mb-4 mx-4 p-2 bg-slate-900/50 border border-slate-800 rounded-lg flex flex-wrap gap-2 justify-center">
+                <span className="text-[10px] text-slate-500 w-full text-center uppercase font-bold">Admin Simulator</span>
+                <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'home', 'Home Player', currentMinute)} className="px-2 py-1 bg-indigo-600 text-xs rounded text-white active:scale-95">Goal Home</button>
+                <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'away', 'Away Player', currentMinute)} className="px-2 py-1 bg-pink-600 text-xs rounded text-white active:scale-95">Goal Away</button>
+                <button onClick={() => MatchSimulator.updateMinute(matchIdStr, currentMinute + 1)} className="px-2 py-1 bg-slate-700 text-xs rounded text-white active:scale-95">+1 Min</button>
+                <button onClick={() => events[0] && MatchSimulator.triggerVarCancel(matchIdStr, events[0].id, events[0].team as any)} className="px-2 py-1 bg-red-900/50 border border-red-500 text-red-400 text-xs rounded active:scale-95">VAR Cancel Last</button>
             </div>
 
             {/* TAB SELECTOR - 4 onglets comme Maquette */}
@@ -133,29 +197,13 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
             <div className="flex-1 overflow-y-auto p-5 no-scrollbar pb-24">
                 {/* ONGLET TIMELINE - Événements du match */}
                 {matchTab === 'timeline' && (
-                    <div className="space-y-4">
-                        {match.events && match.events.length > 0 ? match.events.map((e: any, i: number) => (
-                            <div key={i} className="flex gap-3 animate-slide-up" style={{ animationDelay: `${i * 0.1}s` }}>
-                                <div className="flex flex-col items-center w-8 pt-1">
-                                    <span className="text-xs font-black text-slate-500">{e.min}'</span>
-                                    <div className="w-px h-full bg-slate-800 mt-1" />
-                                </div>
-                                <div className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${e.type === 'GOAL' ? 'bg-emerald-500/10 text-emerald-500' : e.type === 'CARD_RED' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                                        {e.type === 'GOAL' ? <Award size={16} /> : <Activity size={16} />}
-                                    </div>
-                                    <div>
-                                        <div className="text-xs font-black text-white">{e.player}</div>
-                                        <div className="text-[9px] text-slate-500 font-bold uppercase">
-                                            {e.type}{e.detail && ` (${e.detail})`} - {e.team === 'home' ? match.home : match.away}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="text-center py-10 text-slate-600 font-bold text-xs uppercase">
-                                Aucun événement majeur
-                            </div>
+                    <div className="space-y-1 relative before:content-[''] before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-800/50 pl-0">
+                        {events.length === 0 ? (
+                            <div className="text-center py-10 text-slate-500 text-sm">Aucun événement</div>
+                        ) : (
+                            events.map(event => (
+                                <TimelineEvent key={event.id} event={event} />
+                            ))
                         )}
                     </div>
                 )}
@@ -493,6 +541,14 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                     </div>
                 )}
             </div>
+
+            <ShareModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                match={currentMatch}
+                user={{ pseudo: user.username }}
+                bet={{ potentialGain: 350 }}
+            />
         </div >
     );
 };
