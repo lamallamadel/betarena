@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 import type { MessageType } from "../types/types.ts";
 
@@ -9,8 +9,45 @@ const BLACKLIST = ["merde", "arnaque", "connard", "salaud", "escroc"];
 
 export const useChat = (roomId: string, user: any, profile: any, isGuest: boolean) => {
   const [messages, setMessages] = useState<any[]>([]);
+  const [usersOnline, setUsersOnline] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const lastMessageTimeRef = useRef<number>(0);
+
+  // Presence tracking - mark user as online in room
+  useEffect(() => {
+    if (!user?.uid || isGuest || !roomId) return;
+
+    const presenceRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'presence', `${roomId}_${user.uid}`);
+
+    // Set presence on mount
+    setDoc(presenceRef, {
+      roomId,
+      odId: user.uid,
+      pseudo: profile?.pseudo || 'Anonyme',
+      timestamp: serverTimestamp()
+    });
+
+    // Remove presence on unmount
+    return () => {
+      deleteDoc(presenceRef).catch(() => { });
+    };
+  }, [roomId, user?.uid, profile?.pseudo, isGuest]);
+
+  // Listen to online users count
+  useEffect(() => {
+    if (!roomId) return;
+
+    const presenceQuery = query(
+      collection(db, 'artifacts', APP_ID, 'public', 'data', 'presence'),
+      where('roomId', '==', roomId)
+    );
+
+    const unsubscribe = onSnapshot(presenceQuery, (snapshot) => {
+      setUsersOnline(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [roomId]);
 
   useEffect(() => {
     if (!user) return;
@@ -46,7 +83,7 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
 
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'messages'), {
       roomId,
-      userId: user.uid,
+      odId: user.uid,
       pseudo: profile?.pseudo || 'Anonyme',
       type, content,
       timestamp: Date.now(),
@@ -63,5 +100,5 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
     });
   };
 
-  return { messages, sendMessage, reportMessage, chatEndRef };
+  return { messages, sendMessage, reportMessage, chatEndRef, usersOnline, isGuest };
 };

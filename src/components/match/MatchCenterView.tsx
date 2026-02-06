@@ -44,11 +44,12 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
     const [activeRoom, setActiveRoom] = useState<string>('GLOBAL');
     // Adapt user/profile for useChat (expects auth user + profile data)
-    const { messages, sendMessage, reportMessage, chatEndRef } = useChat(
+    const isGuest = !user.uid || user.uid === 'guest';
+    const { messages, sendMessage, reportMessage, chatEndRef, usersOnline } = useChat(
         activeRoom,
         { uid: user.uid }, // Mock auth user object
         { pseudo: user.username, ...user }, // Mock profile object with pseudo
-        false
+        isGuest
     );
 
 
@@ -583,6 +584,8 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                             chatEndRef={chatEndRef}
                             currentUserId={user.uid}
                             matchId={`match-${match.id || 'default'}`}
+                            usersOnline={usersOnline}
+                            isGuest={isGuest}
                         />
                     </div>
                 )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Users, Image as ImageIcon, X, AlertTriangle } from 'lucide-react';
+import { Send, Users, Image as ImageIcon, X, AlertTriangle, Lock } from 'lucide-react';
 
 interface ChatRoomProps {
     messages: any[];
@@ -8,8 +8,10 @@ interface ChatRoomProps {
     activeRoom: string;
     setActiveRoom: (room: string) => void;
     chatEndRef: any;
-    currentUserId?: string; // C'est celui qu'on passe depuis App.tsx
-    matchId: string;        // INDISPENSABLE : Pour savoir quel est l'ID de la room du match
+    currentUserId?: string;
+    matchId: string;
+    usersOnline?: number;
+    isGuest?: boolean;
 }
 
 export const ChatRoom: React.FC<ChatRoomProps> = ({
@@ -20,7 +22,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     setActiveRoom,
     chatEndRef,
     currentUserId,
-    matchId // On le récupère ici
+    matchId,
+    usersOnline = 0,
+    isGuest = false
 }) => {
     const [input, setInput] = useState('');
     const [showGifPicker, setShowGifPicker] = useState(false);
@@ -69,11 +73,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                         </button>
                     ))}
                 </div>
-                {/* Indicateur Live + Compteur Connectés (Mock) */}
+                {/* Indicateur Live + Compteur Connectés (Real-time) */}
                 <div className="flex items-center gap-1.5 px-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[10px] font-bold text-slate-400">
-                        {Math.floor(Math.random() * 50) + 120}
+                        {usersOnline}
                     </span>
                     <Users size={12} className="text-slate-500" />
                 </div>
@@ -120,48 +124,57 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
             </div>
 
             {/* Input zone */}
-            <div className="p-2 bg-slate-950 border-t border-slate-800 flex gap-2 relative">
-                {showGifPicker && (
-                    <div className="absolute bottom-full left-2 mb-2 bg-slate-900 border border-slate-700 p-2 rounded-xl shadow-xl w-64 animate-slide-up z-10">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-slate-400">GIFs</span>
-                            <button onClick={() => setShowGifPicker(false)}><X size={14} className="text-slate-500" /></button>
+            {isGuest ? (
+                /* Guest Mode: Disabled input with lock message */
+                <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-center gap-2">
+                    <Lock size={16} className="text-slate-500" />
+                    <span className="text-sm text-slate-500 font-medium">Connectez-vous pour participer !</span>
+                </div>
+            ) : (
+                /* Connected Mode: Full input */
+                <div className="p-2 bg-slate-950 border-t border-slate-800 flex gap-2 relative">
+                    {showGifPicker && (
+                        <div className="absolute bottom-full left-2 mb-2 bg-slate-900 border border-slate-700 p-2 rounded-xl shadow-xl w-64 animate-slide-up z-10">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-bold text-slate-400">GIFs</span>
+                                <button onClick={() => setShowGifPicker(false)}><X size={14} className="text-slate-500" /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 h-40 overflow-y-auto no-scrollbar">
+                                {MOCK_GIFS.map((gif, i) => (
+                                    <img
+                                        key={i}
+                                        src={gif}
+                                        onClick={() => sendGif(gif)}
+                                        className="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                    />
+                                ))}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 h-40 overflow-y-auto no-scrollbar">
-                            {MOCK_GIFS.map((gif, i) => (
-                                <img
-                                    key={i}
-                                    src={gif}
-                                    onClick={() => sendGif(gif)}
-                                    className="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
+                    )}
 
-                <button
-                    onClick={() => setShowGifPicker(!showGifPicker)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${showGifPicker ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-                >
-                    <ImageIcon size={18} />
-                </button>
+                    <button
+                        onClick={() => setShowGifPicker(!showGifPicker)}
+                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${showGifPicker ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                    >
+                        <ImageIcon size={18} />
+                    </button>
 
-                <input
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && send()}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded-full px-4 text-sm h-10 focus:border-indigo-500 outline-none text-white placeholder-slate-500"
-                    placeholder="Message..."
-                />
-                <button
-                    onClick={send}
-                    disabled={!input.trim()}
-                    className="bg-indigo-600 w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    <Send size={16} />
-                </button>
-            </div>
+                    <input
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && send()}
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded-full px-4 text-sm h-10 focus:border-indigo-500 outline-none text-white placeholder-slate-500"
+                        placeholder="Message..."
+                    />
+                    <button
+                        onClick={send}
+                        disabled={!input.trim()}
+                        className="bg-indigo-600 w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <Send size={16} />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
