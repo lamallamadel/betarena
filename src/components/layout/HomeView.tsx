@@ -119,7 +119,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                     {Object.entries(matchesByLeague).map(([leagueName, matches]) => (
                         <div key={leagueName} className="animate-slide-up">
                             <div className="flex items-center gap-2 mb-3 px-1 sticky top-0 bg-slate-950/50 backdrop-blur-sm py-2 z-10">
-                                <span className="text-xl">{MOCK_LEAGUES[leagueName]?.country || '🌍'}</span>
+                                <span className="text-xl">{(MOCK_LEAGUES as Record<string, { country: string; logo: string }>)[leagueName]?.country || '🌍'}</span>
                                 <h3 className="text-sm font-black text-white uppercase tracking-wide">{leagueName}</h3>
                                 <div className="h-px bg-slate-800 flex-1 ml-2" />
                                 <ChevronDown size={14} className="text-slate-600" />

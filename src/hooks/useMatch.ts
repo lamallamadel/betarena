@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type {Match, MatchEventType, MatchStatus} from "../types/types.ts";
+import type { Match, MatchEventType, MatchStatus } from "../types/types.ts";
 
 export const useMatch = () => {
   // État initial simulant une connexion Provider (Module C)
@@ -9,6 +9,7 @@ export const useMatch = () => {
     awayTeam: 'OM',
     homeScore: 0,
     awayScore: 0,
+    odds: '1.45-4.20-6.50',
     status: 'PRE_MATCH', // RG-A01: Important pour le verrouillage initial
     minute: 0
   });
