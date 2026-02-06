@@ -16,6 +16,7 @@ import { ProfileView } from './components/profile/ProfileView';
 import { ShopView } from './components/shop/ShopView';
 import { Onboarding } from './components/auth/Onboarding';
 import { ShareStoryModal } from './components/social/ShareStoryModal';
+import { AdminApp } from './components/admin';
 
 // UI Components
 import { ToastNotification } from './components/ui/ToastNotification';
@@ -103,6 +104,10 @@ export default function App() {
     // Loading / Onboarding
     if (loading) return <div className="h-screen bg-slate-950 text-white flex items-center justify-center">Chargement...</div>;
     if (isOnboarding) return <Onboarding />;
+
+    // Admin mode (access via ?admin=true in URL)
+    const isAdminMode = window.location.search.includes('admin=true');
+    if (isAdminMode) return <AdminApp />;
 
     return (
         <div className="h-screen bg-slate-950 flex justify-center overflow-hidden font-sans select-none text-slate-200">
