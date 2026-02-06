@@ -210,13 +210,13 @@ const MOCK_LEADERBOARD_SEASON = [
 
 // --- COMPOSANTS UI ATOMIQUES ---
 
-const ProgressBar = ({ value, color = "bg-emerald-500" }) => (
+const ProgressBar = ({ value, color = "bg-emerald-500" }: { value: number; color?: string }) => (
     <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
         <div className={`${color} h-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]`} style={{ width: `${value}%` }} />
     </div>
 );
 
-const AvatarDisplay = ({ size = "w-10 h-10", avatar, frame, level, showShop = false, onShopClick }) => (
+const AvatarDisplay = ({ size = "w-10 h-10", avatar, frame, level, showShop = false, onShopClick }: { size?: string; avatar: string; frame: string; level: number; showShop?: boolean; onShopClick?: () => void }) => (
     <div className="relative">
         <div className={`${size} rounded-full bg-slate-800 flex items-center justify-center text-xl border-4 ${frame} transition-all duration-500 shadow-lg overflow-hidden`}>
             {avatar}
@@ -236,7 +236,9 @@ const AvatarDisplay = ({ size = "w-10 h-10", avatar, frame, level, showShop = fa
 );
 
 // --- COMPOSANT SOCCER PITCH (Issu du Code A - Intact) ---
-const SoccerPitch = ({ starters, isHome }) => (
+interface Starter { name: string; num: number; x: number; y: number; pos?: string }
+
+const SoccerPitch = ({ starters, isHome }: { starters: Starter[]; isHome: boolean }) => (
     <div className={`relative w-full aspect-[2/3] bg-emerald-900 rounded-3xl overflow-hidden border-4 border-emerald-800 shadow-2xl mb-6 mx-auto max-w-[320px] ${!isHome ? 'rotate-180' : ''}`}>
         <div className="absolute inset-4 border-2 border-white/10 rounded-xl" />
         <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/20" />
@@ -244,7 +246,7 @@ const SoccerPitch = ({ starters, isHome }) => (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-16 border-2 border-t-0 border-white/20 rounded-b-xl" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-16 border-2 border-b-0 border-white/20 rounded-t-xl" />
 
-        {starters.map((p, i) => (
+        {starters.map((p: Starter, i: number) => (
             p.x && (
                 <div key={i} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center ${!isHome ? 'rotate-180' : ''}`} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
                     <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-black shadow-lg ${p.num === 1 || p.num === 99 || p.num === 31 || p.num === 22 ? 'bg-yellow-500 text-black border-white' : 'bg-slate-900 text-white border-white/50'}`}>
@@ -838,8 +840,8 @@ const App = () => {
                             key={date.id}
                             onClick={() => setSelectedDate(date.id)}
                             className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-2xl min-w-[70px] transition-all border ${selectedDate === date.id
-                                    ? 'bg-emerald-500 border-emerald-500 text-black shadow-lg shadow-emerald-500/20 scale-105'
-                                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                                ? 'bg-emerald-500 border-emerald-500 text-black shadow-lg shadow-emerald-500/20 scale-105'
+                                : 'bg-slate-900 border-slate-800 text-slate-500'
                                 }`}
                         >
                             <span className="text-[9px] font-black uppercase tracking-wider opacity-80">{date.label === "AUJOURD'HUI" ? "AUJ." : date.label}</span>
@@ -1408,8 +1410,8 @@ const App = () => {
                                         key={filter.value}
                                         onClick={() => setPredictionFilter(filter.value)}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap transition-all ${predictionFilter === filter.value
-                                                ? 'bg-emerald-500 text-black scale-105 shadow-lg'
-                                                : 'bg-slate-900 border border-slate-800 text-slate-500'
+                                            ? 'bg-emerald-500 text-black scale-105 shadow-lg'
+                                            : 'bg-slate-900 border border-slate-800 text-slate-500'
                                             }`}
                                     >
                                         <span>{filter.icon}</span>
@@ -1481,15 +1483,15 @@ const App = () => {
 
                             return filteredPredictions.map(p => (
                                 <div key={p.id} className={`bg-slate-900 border-2 p-5 rounded-[32px] flex items-center justify-between group hover:border-slate-700 transition-all ${p.status === 'WON' ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent' :
-                                        p.status === 'LOST' ? 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-transparent' :
-                                            p.status === 'VOID' ? 'border-slate-700 bg-slate-950' :
-                                                'border-slate-800'
+                                    p.status === 'LOST' ? 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-transparent' :
+                                        p.status === 'VOID' ? 'border-slate-700 bg-slate-950' :
+                                            'border-slate-800'
                                     }`}>
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg ${p.status === 'WON' ? 'bg-emerald-500 text-black' :
-                                                p.status === 'LOST' ? 'bg-red-500 text-white' :
-                                                    p.status === 'VOID' ? 'bg-slate-700 text-slate-400' :
-                                                        'bg-slate-950 text-yellow-500 animate-pulse'
+                                            p.status === 'LOST' ? 'bg-red-500 text-white' :
+                                                p.status === 'VOID' ? 'bg-slate-700 text-slate-400' :
+                                                    'bg-slate-950 text-yellow-500 animate-pulse'
                                             }`}>
                                             {p.status === 'WON' ? '✓' :
                                                 p.status === 'LOST' ? '✗' :
@@ -1544,9 +1546,9 @@ const App = () => {
 
                                         {/* Badge de statut */}
                                         <span className={`text-[8px] font-black px-2 py-1 rounded inline-block uppercase tracking-widest ${p.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 animate-pulse' :
-                                                p.status === 'WON' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                                                    p.status === 'LOST' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                                                        'bg-slate-800 text-slate-500 border border-slate-700'
+                                            p.status === 'WON' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                                p.status === 'LOST' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                                                    'bg-slate-800 text-slate-500 border border-slate-700'
                                             }`}>
                                             {p.status === 'PENDING' ? '⏳ En cours' :
                                                 p.status === 'WON' ? '✓ Gagné' :
@@ -1651,8 +1653,8 @@ const App = () => {
                         <button
                             onClick={() => setLeaderboardType('season')}
                             className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${leaderboardType === 'season'
-                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-black shadow-lg shadow-emerald-500/20 scale-105'
-                                    : 'text-slate-500 hover:text-slate-400'
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-black shadow-lg shadow-emerald-500/20 scale-105'
+                                : 'text-slate-500 hover:text-slate-400'
                                 }`}
                         >
                             <Flame size={14} className={leaderboardType === 'season' ? 'animate-pulse' : ''} />
@@ -1661,8 +1663,8 @@ const App = () => {
                         <button
                             onClick={() => setLeaderboardType('global')}
                             className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${leaderboardType === 'global'
-                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105'
-                                    : 'text-slate-500 hover:text-slate-400'
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105'
+                                : 'text-slate-500 hover:text-slate-400'
                                 }`}
                         >
                             <Trophy size={14} />
@@ -1739,16 +1741,16 @@ const App = () => {
                             <div
                                 key={item.user}
                                 className={`flex items-center gap-4 p-4 border-b border-slate-800/50 last:border-0 transition-all ${item.user === user.username
-                                        ? 'bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-l-emerald-500'
-                                        : 'hover:bg-slate-800/50'
+                                    ? 'bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-l-emerald-500'
+                                    : 'hover:bg-slate-800/50'
                                     }`}
                             >
                                 {/* Rang */}
                                 <div className="w-8 flex flex-col items-center">
                                     <span className={`text-sm font-black ${i === 0 ? 'text-yellow-500' :
-                                            i === 1 ? 'text-slate-400' :
-                                                i === 2 ? 'text-orange-600' :
-                                                    'text-slate-600'
+                                        i === 1 ? 'text-slate-400' :
+                                            i === 2 ? 'text-orange-600' :
+                                                'text-slate-600'
                                         }`}>
                                         {item.rank}
                                     </span>

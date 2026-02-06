@@ -1,4 +1,4 @@
-import { Coins, Trophy, ShoppingBag, Lock, Activity, TrendingUp, Target, Gift, Copy, Share2, Instagram, XCircle } from 'lucide-react';
+// Mock data for BetArena App
 
 // --- DONNÉES MOCK ENRICHIES ---
 
@@ -131,6 +131,37 @@ export const MOCK_LEADERBOARD = [
     { rank: 1, user: 'PronoMaster', coins: 15420, level: 12, avatar: '🤴', trend: 'up' },
     { rank: 2, user: 'Architecte_UX', coins: 2500, level: 4, avatar: '🦁', trend: 'stable' },
     { rank: 3, user: 'Footix_Pro', coins: 1980, level: 7, avatar: '🥷', trend: 'down' },
+];
+
+// --- DONNÉES SAISON & LEADERBOARD (RG-B04/B05) ---
+export const CURRENT_SEASON = {
+    id: 'S2025-2026',
+    name: 'Saison 2025-2026',
+    start_date: '2025-08-01',
+    end_date: '2026-05-31',
+    active: true
+};
+
+export const MOCK_LEADERBOARD_GLOBAL = [
+    { rank: 1, user: 'PronoMaster', coins: 15420, season_coins: 3240, level: 12, avatar: '🤴', trend: 'up', total_predictions: 342, win_rate: 72 },
+    { rank: 2, user: 'Architecte_UX', coins: 2500, season_coins: 1850, level: 4, avatar: '🦁', trend: 'stable', total_predictions: 124, win_rate: 68 },
+    { rank: 3, user: 'Footix_Pro', coins: 1980, season_coins: 980, level: 7, avatar: '🥷', trend: 'down', total_predictions: 89, win_rate: 55 },
+    { rank: 4, user: 'BalondOr', coins: 1750, season_coins: 1200, level: 6, avatar: '⚽', trend: 'up', total_predictions: 156, win_rate: 61 },
+    { rank: 5, user: 'LigueExpert', coins: 1650, season_coins: 950, level: 5, avatar: '🎯', trend: 'stable', total_predictions: 98, win_rate: 64 },
+    { rank: 6, user: 'ParisLegend', coins: 1420, season_coins: 720, level: 8, avatar: '🔴', trend: 'down', total_predictions: 201, win_rate: 58 },
+    { rank: 7, user: 'UCLKing', coins: 1380, season_coins: 880, level: 7, avatar: '👑', trend: 'up', total_predictions: 134, win_rate: 66 },
+    { rank: 8, user: 'TacticalGenius', coins: 1290, season_coins: 690, level: 6, avatar: '🧠', trend: 'stable', total_predictions: 112, win_rate: 62 },
+];
+
+export const MOCK_LEADERBOARD_SEASON = [
+    { rank: 1, user: 'Architecte_UX', coins: 1850, season_coins: 1850, level: 4, avatar: '🦁', trend: 'up', total_predictions: 67, win_rate: 71 },
+    { rank: 2, user: 'PronoMaster', coins: 3240, season_coins: 3240, level: 12, avatar: '🤴', trend: 'stable', total_predictions: 89, win_rate: 69 },
+    { rank: 3, user: 'BalondOr', coins: 1200, season_coins: 1200, level: 6, avatar: '⚽', trend: 'up', total_predictions: 54, win_rate: 72 },
+    { rank: 4, user: 'LigueExpert', coins: 950, season_coins: 950, level: 5, avatar: '🎯', trend: 'down', total_predictions: 43, win_rate: 67 },
+    { rank: 5, user: 'Footix_Pro', coins: 980, season_coins: 980, level: 7, avatar: '🥷', trend: 'stable', total_predictions: 38, win_rate: 58 },
+    { rank: 6, user: 'UCLKing', coins: 880, season_coins: 880, level: 7, avatar: '👑', trend: 'up', total_predictions: 49, win_rate: 65 },
+    { rank: 7, user: 'ParisLegend', coins: 720, season_coins: 720, level: 8, avatar: '🔴', trend: 'down', total_predictions: 56, win_rate: 55 },
+    { rank: 8, user: 'TacticalGenius', coins: 690, season_coins: 690, level: 6, avatar: '🧠', trend: 'stable', total_predictions: 38, win_rate: 61 },
 ];
 
 // --- DONNÉES MOCK POUR LES TENDANCES DE PRONOSTICS ---

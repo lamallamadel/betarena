@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Activity, ChevronLeft, Share2, Timer, Coins, Clock, Send, Info, Users
+    Activity, ChevronLeft, Share2, Timer, Coins, Clock, Send, Info, Users, Award
 } from 'lucide-react';
 import { SoccerPitch } from './SoccerPitch';
 import { PredictionTrends } from './PredictionTrends';
@@ -15,7 +15,7 @@ interface MatchCenterViewProps {
 }
 
 export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, onNavigate, onPlaceBet, onShare }) => {
-    const [matchTab, setMatchTab] = useState<'details' | 'pronos' | 'chat'>('details');
+    const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
     const [activeLineupTeam, setActiveLineupTeam] = useState<'home' | 'away'>('home');
     const [pronoType, setPronoType] = useState<'1N2' | 'EXACT_SCORE'>('1N2');
     const [betAmount, setBetAmount] = useState(100);
@@ -85,24 +85,53 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                 </div>
             </div>
 
-            {/* TAB SELECTOR */}
-            <div className="px-4 -mt-6 relative z-20">
-                <div className="bg-slate-900 p-1.5 rounded-2xl border border-slate-800 flex shadow-xl">
-                    <button onClick={() => setMatchTab('details')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 ${matchTab === 'details' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
-                        <Activity size={14} /> Détails
+            {/* TAB SELECTOR - 4 onglets comme Maquette */}
+            <div className="flex border-b border-slate-900 bg-slate-950 px-4 sticky top-0 z-20">
+                {['TIMELINE', 'COMPOS', 'PRONOS', 'CHAT'].map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => setMatchTab(tab.toLowerCase() as 'timeline' | 'compos' | 'pronos' | 'chat')}
+                        className={`flex-1 py-4 text-[10px] font-black tracking-widest border-b-2 transition-colors ${matchTab === tab.toLowerCase() ? 'border-emerald-500 text-emerald-500' : 'border-transparent text-slate-600'
+                            }`}
+                    >
+                        {tab}
                     </button>
-                    <button onClick={() => setMatchTab('pronos')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 ${matchTab === 'pronos' ? 'bg-slate-800 text-emerald-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
-                        <Coins size={14} /> Parier
-                    </button>
-                    <button onClick={() => setMatchTab('chat')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 ${matchTab === 'chat' ? 'bg-slate-800 text-blue-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>
-                        <Send size={14} /> Chat <span className="ml-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce"></span>
-                    </button>
-                </div>
+                ))}
             </div>
 
             {/* CONTENT */}
             <div className="flex-1 overflow-y-auto p-5 no-scrollbar pb-24">
-                {matchTab === 'details' && (
+                {/* ONGLET TIMELINE - Événements du match */}
+                {matchTab === 'timeline' && (
+                    <div className="space-y-4">
+                        {match.events && match.events.length > 0 ? match.events.map((e: any, i: number) => (
+                            <div key={i} className="flex gap-3 animate-slide-up" style={{ animationDelay: `${i * 0.1}s` }}>
+                                <div className="flex flex-col items-center w-8 pt-1">
+                                    <span className="text-xs font-black text-slate-500">{e.min}'</span>
+                                    <div className="w-px h-full bg-slate-800 mt-1" />
+                                </div>
+                                <div className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${e.type === 'GOAL' ? 'bg-emerald-500/10 text-emerald-500' : e.type === 'CARD_RED' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                                        {e.type === 'GOAL' ? <Award size={16} /> : <Activity size={16} />}
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-black text-white">{e.player}</div>
+                                        <div className="text-[9px] text-slate-500 font-bold uppercase">
+                                            {e.type}{e.detail && ` (${e.detail})`} - {e.team === 'home' ? match.home : match.away}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="text-center py-10 text-slate-600 font-bold text-xs uppercase">
+                                Aucun événement majeur
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ONGLET COMPOS - Compositions d'équipes */}
+                {matchTab === 'compos' && (
                     <div className="animate-slide-up">
                         {/* Toggle Equipes (Compo) */}
                         <div className="flex justify-center mb-6 bg-slate-900/50 rounded-full p-1 w-fit mx-auto border border-slate-800">
