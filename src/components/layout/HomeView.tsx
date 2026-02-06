@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Trophy, Bell, Calendar, Star, ChevronDown, Coins } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff } from 'lucide-react';
 import { MOCK_DATES, MOCK_LEAGUES, MOCK_MATCHES } from '../../data/mockData';
 import { MatchCard } from '../match/MatchCard';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
@@ -15,6 +15,19 @@ interface HomeViewProps {
 
 export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchClick, toggleNotifications }) => {
     const [selectedDate, setSelectedDate] = useState(0);
+
+    // No Spoiler Mode - persisté dans localStorage
+    const [isSpoilerFree, setIsSpoilerFree] = useState(() => {
+        const saved = localStorage.getItem('betarena_no_spoiler');
+        return saved === 'true';
+    });
+
+    // Sauvegarder le mode No Spoiler dans localStorage
+    useEffect(() => {
+        localStorage.setItem('betarena_no_spoiler', String(isSpoilerFree));
+    }, [isSpoilerFree]);
+
+    const toggleSpoilerMode = () => setIsSpoilerFree(!isSpoilerFree);
 
     // Grouper les matchs par ligue (comme dans Maquette.tsx)
     const matchesByLeague = MOCK_MATCHES.reduce((acc: Record<string, any[]>, match) => {
@@ -42,7 +55,18 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* No Spoiler Toggle */}
+                        <button
+                            onClick={toggleSpoilerMode}
+                            className={`p-2.5 rounded-full border transition-all active:scale-95 ${isSpoilerFree
+                                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                                }`}
+                            title={isSpoilerFree ? 'Afficher les scores' : 'Masquer les scores'}
+                        >
+                            {isSpoilerFree ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                         <button onClick={toggleNotifications} className="p-2.5 bg-slate-900 rounded-full border border-slate-800 relative text-slate-400 active:scale-95 transition-transform">
                             <Bell size={18} />
                             <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-950 shadow-lg" />
@@ -102,7 +126,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                                         <span className="text-xs font-bold text-white">{match.home}</span>
                                     </div>
                                     <div className="text-2xl font-black text-white bg-slate-900/50 px-3 py-1 rounded-lg backdrop-blur-sm">
-                                        {match.status === 'SCHEDULED' ? 'VS' : `${match.score.h}-${match.score.a}`}
+                                        {match.status === 'SCHEDULED'
+                                            ? 'VS'
+                                            : isSpoilerFree
+                                                ? '? - ?'
+                                                : `${match.score.h}-${match.score.a}`
+                                        }
                                     </div>
                                     <div className="flex flex-col items-center gap-1">
                                         <span className="text-3xl">{match.awayLogo}</span>
@@ -126,7 +155,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                             </div>
                             <div className="space-y-2">
                                 {matches.map((match: any) => (
-                                    <MatchCard key={match.id} match={match} onClick={() => onMatchClick(match)} />
+                                    <MatchCard key={match.id} match={match} onClick={() => onMatchClick(match)} noSpoiler={isSpoilerFree} />
                                 ))}
                             </div>
                         </div>
