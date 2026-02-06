@@ -38,10 +38,11 @@ export default function App() {
     // Business Hooks
     const { } = useMatch(); // match unused for now
     const { placeBet, is1N2Locked, isScoreLocked, getExistingBet } = useBetting(authUser?.uid, selectedMatch?.id, selectedMatch?.status);
-    const { buyItem } = useGamification(authUser?.uid, profile);
+    const { buyItem, equipItem } = useGamification(authUser?.uid, profile);
 
     // --- ADAPTER USER PROFILE ---
     const user: RichUserProfile = {
+        uid: authUser?.uid || 'guest',
         username: profile?.pseudo || 'Joueur',
         avatar: profile?.avatar || '👤',
         frame: profile?.frame || 'border-slate-800',
@@ -133,7 +134,7 @@ export default function App() {
                     {currentView === 'SOCIAL' && <SocialView />}
                     {currentView === 'LEADERBOARD' && <LeaderboardView user={user} onNavigate={handleNavigate} />}
                     {currentView === 'PROFILE' && <ProfileView user={user} onNavigate={handleNavigate} />}
-                    {currentView === 'SHOP' && <ShopView user={user} onNavigate={handleNavigate} onBuyItem={handleBuyItem} />}
+                    {currentView === 'SHOP' && <ShopView user={user} onNavigate={handleNavigate} onBuyItem={handleBuyItem} onEquipItem={(type, asset) => equipItem(type, asset)} />}
                     {currentView === 'MATCH' && selectedMatch && (
                         <MatchCenterView
                             match={selectedMatch}

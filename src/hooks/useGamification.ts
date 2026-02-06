@@ -38,6 +38,15 @@ export const useGamification = (userId: string | undefined, profile: any) => {
     });
   };
 
+  // Action : Équiper
+  const equipItem = async (type: 'AVATAR' | 'FRAME', asset: string) => {
+    if (!userId) return;
+    const userRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'data', 'profile');
+
+    const updateData = type === 'AVATAR' ? { avatar: asset } : { frame: asset };
+    await updateDoc(userRef, updateData);
+  };
+
   // Action : Réclamer Bonus
   const claimBonus = async () => {
     if (!userId || !profile) return;
@@ -81,5 +90,5 @@ export const useGamification = (userId: string | undefined, profile: any) => {
     });
   };
 
-  return { getLevel, getProgress, buyItem, claimBonus, claimShareReward, isBonusAvailable };
+  return { getLevel, getProgress, buyItem, equipItem, claimBonus, claimShareReward, isBonusAvailable };
 };

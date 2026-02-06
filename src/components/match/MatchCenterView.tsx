@@ -121,6 +121,16 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
         return timeStr.toString().replace('LIVE ', ''); // Cleanup
     };
 
+
+    // Calculate Active Bet for Share Modal
+    const activeBet = existingBet1N2 || existingBetScore ? {
+        potentialGain: existingBet1N2
+            ? Math.floor(existingBet1N2.amount * existingBet1N2.oddVal)
+            : existingBetScore
+                ? (isPariMutuel ? 'Variable' : Math.floor(existingBetScore.amount * 3.5))
+                : 0
+    } : undefined;
+
     return (
         <div className="flex flex-col h-full bg-slate-950 animate-slide-up relative overflow-hidden">
             {/* GOAL OVERLAY */}
@@ -521,13 +531,25 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                                 }
 
                                 return (
-                                    <button
-                                        onClick={handlePlaceBet}
-                                        disabled={isLocked || needsSelection || insufficientCoins}
-                                        className="w-full bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-xl font-black text-black text-sm uppercase transition-all active:scale-95 shadow-lg disabled:shadow-none"
-                                    >
-                                        {buttonText}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handlePlaceBet}
+                                            disabled={isLocked || needsSelection || insufficientCoins}
+                                            className="flex-1 bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-xl font-black text-black text-sm uppercase transition-all active:scale-95 shadow-lg disabled:shadow-none"
+                                        >
+                                            {buttonText}
+                                        </button>
+
+                                        {existingBet && (
+                                            <button
+                                                onClick={() => setShowShareModal(true)}
+                                                className="px-4 bg-indigo-600 text-white rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                                                title="Partager mon pari"
+                                            >
+                                                <Share2 size={20} />
+                                            </button>
+                                        )}
+                                    </div>
                                 );
                             })()}
 
@@ -562,9 +584,9 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 match={currentMatch}
-                user={{ pseudo: user.username }}
-                bet={{ potentialGain: 350 }}
+                user={user}
+                bet={activeBet}
             />
-        </div >
+        </div>
     );
 };

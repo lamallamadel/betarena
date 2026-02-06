@@ -10,6 +10,17 @@ export const Onboarding = () => {
 
   const handleSubmit = async () => {
     setError(null);
+
+    if (!pseudo.trim()) {
+      setError("Veuillez entrer un pseudo");
+      return;
+    }
+
+    if (pseudo.trim().length < 3) {
+      setError("Le pseudo doit contenir au moins 3 caractères");
+      return;
+    }
+
     try {
       await completeOnboarding(pseudo, referral);
     } catch (e: any) {
@@ -75,7 +86,8 @@ export const Onboarding = () => {
 
             <button
               onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all transform active:scale-[0.98] mt-2"
+              disabled={!pseudo.trim()}
+              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:from-slate-700 disabled:to-slate-800 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all transform active:scale-[0.98] disabled:active:scale-100 mt-2"
             >
               Entrer dans l'arène
             </button>

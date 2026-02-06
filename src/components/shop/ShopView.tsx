@@ -7,9 +7,10 @@ interface ShopViewProps {
     user: RichUserProfile;
     onNavigate: (view: 'LIVE' | 'PREDICT' | 'SOCIAL' | 'SHOP' | 'RANK' | 'PROFILE' | 'HOME') => void;
     onBuyItem: (item: any) => void;
+    onEquipItem: (type: 'AVATAR' | 'FRAME', asset: string) => void;
 }
 
-export const ShopView: React.FC<ShopViewProps> = ({ user, onNavigate, onBuyItem }) => {
+export const ShopView: React.FC<ShopViewProps> = ({ user, onNavigate, onBuyItem, onEquipItem }) => {
     return (
         <>
             <header className="pt-12 pb-2 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-900">
@@ -51,7 +52,10 @@ export const ShopView: React.FC<ShopViewProps> = ({ user, onNavigate, onBuyItem 
                                             {item.type === 'AVATAR' ? item.asset : '👤'}
                                         </div>
                                         <span className="text-[10px] font-black text-white uppercase mb-4 text-center">{item.name}</span>
-                                        <button onClick={() => onBuyItem(item)} className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase transition-all ${isOwned ? (equipped ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-emerald-500') : 'bg-white text-black'}`}>
+                                        <button
+                                            onClick={() => isOwned ? onEquipItem(item.type as 'AVATAR' | 'FRAME', item.asset) : onBuyItem(item)}
+                                            className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase transition-all ${isOwned ? (equipped ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-emerald-500') : 'bg-white text-black'}`}
+                                        >
                                             {isOwned ? (equipped ? 'Équipé' : 'Équiper') : `${item.price} 🪙`}
                                         </button>
                                     </div>

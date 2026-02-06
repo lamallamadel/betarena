@@ -19,11 +19,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isOnboarding, setIsOnboarding] = useState(false);
+    const [isOnboarding, setIsOnboarding] = useState(true);
 
     // 1. Connexion Firebase Anonyme
     useEffect(() => {
-        signInAnonymously(auth).catch((err) => console.error("Auth Error", err));
+        signInAnonymously(auth).catch((err) => console.error("Firebase Auth Error", err));
 
         const unsubscribe = onAuthStateChanged(auth, (u) => {
             setUser(u);
@@ -40,11 +40,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const unsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
-                // Le profil existe -> On charge les données et on cache l'onboarding
                 setProfile({ uid: user.uid, id: user.uid, ...docSnap.data() } as UserProfile);
                 setIsOnboarding(false);
             } else {
-                // Le profil n'existe pas -> On déclenche le mode Onboarding
                 setProfile(null);
                 setIsOnboarding(true);
             }
