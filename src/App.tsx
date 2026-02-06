@@ -37,7 +37,7 @@ export default function App() {
 
     // Business Hooks
     const { } = useMatch(); // match unused for now
-    const { placeBet } = useBetting(authUser?.uid, selectedMatch?.id, selectedMatch?.status);
+    const { placeBet, is1N2Locked, isScoreLocked, getExistingBet } = useBetting(authUser?.uid, selectedMatch?.id, selectedMatch?.status);
     const { buyItem } = useGamification(authUser?.uid, profile);
 
     // --- ADAPTER USER PROFILE ---
@@ -146,6 +146,10 @@ export default function App() {
                                 setShowShareModal(true);
                             }}
                             onShare={() => setShowShareModal(true)}
+                            is1N2Locked={is1N2Locked()}
+                            isScoreLocked={isScoreLocked()}
+                            existingBet1N2={getExistingBet('1N2')}
+                            existingBetScore={getExistingBet('EXACT_SCORE')}
                         />
                     )}
                 </main>

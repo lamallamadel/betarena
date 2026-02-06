@@ -12,9 +12,19 @@ interface MatchCenterViewProps {
     onNavigate: (view: string) => void;
     onPlaceBet: (type: '1N2' | 'EXACT_SCORE', selection: any, amount: number, odd?: { label: string, val: number } | null) => void;
     onShare: () => void;
+    // SFD RG-A01/A02: Lock states
+    is1N2Locked?: boolean;
+    isScoreLocked?: boolean;
+    // SFD: Existing bet for "Update" button
+    existingBet1N2?: any;
+    existingBetScore?: any;
 }
 
-export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, onNavigate, onPlaceBet, onShare }) => {
+export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
+    match, user, onNavigate, onPlaceBet, onShare,
+    is1N2Locked = false, isScoreLocked = false,
+    existingBet1N2, existingBetScore
+}) => {
     const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
     const [activeLineupTeam, setActiveLineupTeam] = useState<'home' | 'away'>('home');
     const [pronoType, setPronoType] = useState<'1N2' | 'EXACT_SCORE'>('1N2');
@@ -270,6 +280,15 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                             {/* Interface Score Exact */}
                             {pronoType === 'EXACT_SCORE' && (
                                 <>
+                                    {/* RG-A02: Avertissement verrouillage Score Exact */}
+                                    {isScoreLocked && (
+                                        <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-4 flex items-start gap-2">
+                                            <span className="text-red-500 shrink-0">🔒</span>
+                                            <p className="text-[9px] font-bold text-red-500/80 leading-relaxed">
+                                                Paris Score Exact fermés - 2ème mi-temps commencée
+                                            </p>
+                                        </div>
+                                    )}
                                     <div className="mb-4">
                                         <h5 className="text-[10px] font-black text-slate-500 uppercase mb-3 text-center">
                                             Prédisez le score final
@@ -278,17 +297,19 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                                             {/* Home Score */}
                                             <div className="flex flex-col items-center gap-2">
                                                 <span className="text-xl">{match.homeLogo}</span>
-                                                <div className="flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                                                <div className={`flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 ${isScoreLocked ? 'opacity-50' : ''}`}>
                                                     <button
                                                         onClick={() => setScoreHome(Math.min(9, scoreHome + 1))}
-                                                        className="w-10 h-10 bg-emerald-500 text-black rounded-xl font-black text-xl active:scale-95 transition-transform"
+                                                        disabled={isScoreLocked}
+                                                        className="w-10 h-10 bg-emerald-500 disabled:bg-slate-700 text-black disabled:text-slate-500 rounded-xl font-black text-xl active:scale-95 transition-transform disabled:cursor-not-allowed"
                                                     >
                                                         +
                                                     </button>
                                                     <span className="text-4xl font-black text-white w-16 text-center">{scoreHome}</span>
                                                     <button
                                                         onClick={() => setScoreHome(Math.max(0, scoreHome - 1))}
-                                                        className="w-10 h-10 bg-slate-800 text-white rounded-xl font-black text-xl active:scale-95 transition-transform"
+                                                        disabled={isScoreLocked}
+                                                        className="w-10 h-10 bg-slate-800 disabled:bg-slate-700 text-white disabled:text-slate-500 rounded-xl font-black text-xl active:scale-95 transition-transform disabled:cursor-not-allowed"
                                                     >
                                                         -
                                                     </button>
@@ -300,17 +321,19 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                                             {/* Away Score */}
                                             <div className="flex flex-col items-center gap-2">
                                                 <span className="text-xl">{match.awayLogo}</span>
-                                                <div className="flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                                                <div className={`flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 ${isScoreLocked ? 'opacity-50' : ''}`}>
                                                     <button
                                                         onClick={() => setScoreAway(Math.min(9, scoreAway + 1))}
-                                                        className="w-10 h-10 bg-emerald-500 text-black rounded-xl font-black text-xl active:scale-95 transition-transform"
+                                                        disabled={isScoreLocked}
+                                                        className="w-10 h-10 bg-emerald-500 disabled:bg-slate-700 text-black disabled:text-slate-500 rounded-xl font-black text-xl active:scale-95 transition-transform disabled:cursor-not-allowed"
                                                     >
                                                         +
                                                     </button>
                                                     <span className="text-4xl font-black text-white w-16 text-center">{scoreAway}</span>
                                                     <button
                                                         onClick={() => setScoreAway(Math.max(0, scoreAway - 1))}
-                                                        className="w-10 h-10 bg-slate-800 text-white rounded-xl font-black text-xl active:scale-95 transition-transform"
+                                                        disabled={isScoreLocked}
+                                                        className="w-10 h-10 bg-slate-800 disabled:bg-slate-700 text-white disabled:text-slate-500 rounded-xl font-black text-xl active:scale-95 transition-transform disabled:cursor-not-allowed"
                                                     >
                                                         -
                                                     </button>
@@ -319,7 +342,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                                         </div>
 
                                         {/* Scores Rapides */}
-                                        <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                                        <div className={`bg-slate-950 border border-slate-800 p-3 rounded-xl ${isScoreLocked ? 'opacity-50' : ''}`}>
                                             <p className="text-[9px] font-bold text-slate-500 uppercase text-center mb-2">Scores Fréquents</p>
                                             <div className="grid grid-cols-4 gap-2">
                                                 {['1-0', '2-0', '0-1', '1-1', '2-1', '1-2', '2-2', '0-0'].map(score => {
@@ -328,7 +351,8 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                                                         <button
                                                             key={score}
                                                             onClick={() => { setScoreHome(h); setScoreAway(a); }}
-                                                            className="py-2 px-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-black text-white hover:border-emerald-500 transition-colors active:scale-95"
+                                                            disabled={isScoreLocked}
+                                                            className="py-2 px-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-black text-white hover:border-emerald-500 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-800"
                                                         >
                                                             {score}
                                                         </button>
@@ -357,19 +381,36 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({ match, user, o
                                 </>
                             )}
 
-                            {/* Bouton de Validation */}
-                            <button
-                                onClick={handlePlaceBet}
-                                disabled={pronoType === '1N2' ? !selectedOdd : false}
-                                className="w-full bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-xl font-black text-black text-sm uppercase transition-all active:scale-95 shadow-lg disabled:shadow-none"
-                            >
-                                {user.coins < betAmount
-                                    ? '❌ Coins Insuffisants'
-                                    : pronoType === '1N2' && !selectedOdd
-                                        ? '⚠️ Sélectionnez une cote'
-                                        : '✅ Valider le Pronostic'
+                            {/* Bouton de Validation - SFD Compliant */}
+                            {(() => {
+                                // Determine lock state based on bet type
+                                const isLocked = pronoType === '1N2' ? is1N2Locked : isScoreLocked;
+                                const existingBet = pronoType === '1N2' ? existingBet1N2 : existingBetScore;
+                                const needsSelection = pronoType === '1N2' && !selectedOdd;
+                                const insufficientCoins = user.coins < betAmount;
+
+                                // SFD: Button text based on state
+                                let buttonText = '✅ Valider le Pronostic';
+                                if (isLocked) {
+                                    buttonText = '🔒 Les paris sont fermés';
+                                } else if (insufficientCoins) {
+                                    buttonText = '❌ Coins Insuffisants';
+                                } else if (needsSelection) {
+                                    buttonText = '⚠️ Sélectionnez une cote';
+                                } else if (existingBet) {
+                                    buttonText = '🔄 Mettre à jour le pari';
                                 }
-                            </button>
+
+                                return (
+                                    <button
+                                        onClick={handlePlaceBet}
+                                        disabled={isLocked || needsSelection || insufficientCoins}
+                                        className="w-full bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-xl font-black text-black text-sm uppercase transition-all active:scale-95 shadow-lg disabled:shadow-none"
+                                    >
+                                        {buttonText}
+                                    </button>
+                                );
+                            })()}
 
                             {/* Solde Restant */}
                             <div className="flex justify-between items-center mt-3 px-2">

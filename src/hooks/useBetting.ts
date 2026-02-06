@@ -127,6 +127,136 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     });
   };
 
+  // ============================================
+  // MODULE B: MOTEUR DE RÉSOLUTION (RG-B01 à RG-B03)
+  // ============================================
+
+  /**
+   * RG-B01: Détermine le vainqueur final du match
+   * Le résultat final inclut prolongations + TAB si applicable
+   * @returns '1' (home), 'N' (draw - temps réglementaire), '2' (away)
+   */
+  const determineWinner = (
+    score: { h: number; a: number },
+    hadPenaltyShootout: boolean = false,
+    penaltyScore: { h: number; a: number } | null = null
+  ): '1' | 'N' | '2' => {
+    // Si match avec TAB, le vainqueur est celui qui gagne aux TAB
+    if (hadPenaltyShootout && penaltyScore) {
+      return penaltyScore.h > penaltyScore.a ? '1' : '2';
+    }
+    // Sinon, résultat du temps réglementaire (+ prolongations si incluses)
+    if (score.h > score.a) return '1';
+    if (score.a > score.h) return '2';
+    return 'N';
+  };
+
+  /**
+   * RG-B02: Calcule le gain selon le mode de la compétition
+   * - ODDS_MULTIPLIER: mise × cote
+   * - FIXED: points fixes définis par compétition
+   */
+  const calculateGain = (
+    prediction: {
+      type: PredictionType;
+      amount: number;
+      odd: number | null;
+    },
+    competitionRules: {
+      calculation_mode: 'ODDS_MULTIPLIER' | 'FIXED';
+      points_correct_1n2: number | null;
+      points_correct_score: number | null;
+    }
+  ): number => {
+    if (competitionRules.calculation_mode === 'FIXED') {
+      // Mode FIXED: points définis par la compétition
+      if (prediction.type === '1N2') {
+        return competitionRules.points_correct_1n2 || RULES.GAINS['1N2'];
+      }
+      if (prediction.type === 'EXACT_SCORE') {
+        return competitionRules.points_correct_score || RULES.GAINS['EXACT_SCORE'];
+      }
+      return RULES.GAINS[prediction.type] || 0;
+    } else {
+      // Mode ODDS_MULTIPLIER: mise × cote
+      if (prediction.odd) {
+        return Math.floor(prediction.amount * prediction.odd);
+      }
+      // Fallback si pas de cote
+      return RULES.GAINS[prediction.type] || 0;
+    }
+  };
+
+  /**
+   * RG-B03: Résout un pari et calcule le statut final
+   * Gère les cas: WON, LOST, VOID (annulé si TAB non tiré, etc.)
+   */
+  const resolveBet = (
+    prediction: {
+      type: PredictionType;
+      selection: string;
+      amount: number;
+      odd: number | null;
+    },
+    match: {
+      score: { h: number; a: number };
+      hadPenaltyShootout: boolean;
+      penaltyScore: { h: number; a: number } | null;
+      competition: string;
+    },
+    competitionRules: {
+      calculation_mode: 'ODDS_MULTIPLIER' | 'FIXED';
+      points_correct_1n2: number | null;
+      points_correct_score: number | null;
+      include_extra_time: boolean;
+    }
+  ): { status: 'WON' | 'LOST' | 'VOID'; gain: number; reason?: string } => {
+    const winner = determineWinner(match.score, match.hadPenaltyShootout, match.penaltyScore);
+    const finalScore = `${match.score.h}-${match.score.a}`;
+
+    // Gestion du type 1N2
+    if (prediction.type === '1N2') {
+      // Cas spécial: TAB a lieu mais le pari était sur 'N' (nul temps réglementaire)
+      if (match.hadPenaltyShootout && prediction.selection === 'N') {
+        // En phase finale avec TAB, un "N" au temps réglementaire est généralement VOID
+        // car le match continue en prolongations
+        return { status: 'VOID', gain: prediction.amount, reason: 'Match avec prolongations/TAB' };
+      }
+
+      if (prediction.selection === winner) {
+        const gain = calculateGain(prediction, competitionRules);
+        return { status: 'WON', gain };
+      } else {
+        return { status: 'LOST', gain: 0 };
+      }
+    }
+
+    // Gestion du type EXACT_SCORE
+    if (prediction.type === 'EXACT_SCORE') {
+      // Le score exact compare avec le score final (temps réglementaire ou avec prolongations selon règles)
+      if (prediction.selection === finalScore) {
+        const gain = calculateGain(prediction, competitionRules);
+        return { status: 'WON', gain };
+      } else {
+        return { status: 'LOST', gain: 0 };
+      }
+    }
+
+    // Gestion du type PENALTY_MISS (si implémenté)
+    if (prediction.type === 'PENALTY_MISS') {
+      // RG-B03: Annulé si le joueur désigné n'a pas tiré
+      // Pour l'instant, on retourne VOID car la logique dépend des événements du match
+      return { status: 'VOID', gain: prediction.amount, reason: 'Résolution PENALTY_MISS non implémentée' };
+    }
+
+    return { status: 'LOST', gain: 0 };
+  };
+
+  // Helper pour vérifier si un pari existe déjà pour ce match/type
+  const getExistingBet = (type: PredictionType) => {
+    return predictions[type] || null;
+  };
+
   return {
     predictions,
     history,
@@ -134,6 +264,11 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     is1N2Locked,
     isScoreLocked,
     getLockMessage,
-    RULES
+    getExistingBet,
+    RULES,
+    // Module B exports
+    determineWinner,
+    calculateGain,
+    resolveBet
   };
 };
