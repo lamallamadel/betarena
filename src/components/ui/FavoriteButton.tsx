@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Star } from 'lucide-react';
 import { useFavorites, type FavoriteEntityType } from '../../hooks/useFavorites';
 
 interface FavoriteButtonProps {
@@ -25,15 +24,9 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
     const isFav = isFavorite(entityType, entityId);
 
     const sizeClasses = {
-        sm: 'w-6 h-6',
-        md: 'w-8 h-8',
-        lg: 'w-10 h-10'
-    };
-
-    const iconSizes = {
-        sm: 14,
-        md: 18,
-        lg: 22
+        sm: 'w-7 h-7',
+        md: 'w-9 h-9',
+        lg: 'w-11 h-11'
     };
 
     const handleClick = (e: React.MouseEvent) => {
@@ -59,18 +52,19 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
                 ${sizeClasses[size]} 
                 flex items-center justify-center rounded-full 
                 transition-all duration-200 active:scale-90
+                border-2
                 ${isFav
-                    ? 'bg-yellow-500/20 text-yellow-400'
-                    : 'bg-slate-800 text-slate-500 hover:text-yellow-400'
+                    ? 'bg-yellow-500 border-yellow-400'
+                    : 'bg-slate-700 border-slate-600 hover:border-yellow-500'
                 }
                 ${isAnimating ? 'scale-125' : ''}
             `}
             aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
-            <Star
-                size={iconSizes[size]}
-                className={`transition-all duration-200 ${isFav ? 'fill-yellow-400' : ''}`}
-            />
+            <span className={`text-sm ${isFav ? '' : 'opacity-80'}`}>
+                {isFav ? '⭐' : '☆'}
+            </span>
         </button>
     );
 };
+
