@@ -6,6 +6,7 @@ import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
 import { FavoriteButton } from '../ui/FavoriteButton';
 import { GuestWallModal } from '../auth/GuestWallModal';
+import { SearchOverlay } from '../search/SearchOverlay';
 import type { RichUserProfile } from '../../types/types';
 
 interface HomeViewProps {
@@ -33,6 +34,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
 
     // Guest Wall Modal state
     const [showGuestWall, setShowGuestWall] = useState(false);
+    // Search Overlay state
+    const [showSearch, setShowSearch] = useState(false);
 
     // Grouper les matchs par ligue (comme dans Maquette.tsx)
     const matchesByLeague = MOCK_MATCHES.reduce((acc: Record<string, any[]>, match) => {
@@ -71,6 +74,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                             title={isSpoilerFree ? 'Afficher les scores' : 'Masquer les scores'}
                         >
                             {isSpoilerFree ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        {/* Search Button */}
+                        <button onClick={() => setShowSearch(true)} className="relative p-2 text-slate-400 hover:text-white transition-colors">
+                            <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800">
+                                <span className="text-xs">🔍</span>
+                            </div>
                         </button>
                         <button onClick={toggleNotifications} className="p-2.5 bg-slate-900 rounded-full border border-slate-800 relative text-slate-400 active:scale-95 transition-transform">
                             <Bell size={18} />
@@ -179,6 +188,18 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                 onClose={() => setShowGuestWall(false)}
                 onLogin={() => setShowGuestWall(false)}
                 onSignup={() => setShowGuestWall(false)}
+            />
+
+            {/* Search Overlay */}
+            <SearchOverlay
+                isOpen={showSearch}
+                onClose={() => setShowSearch(false)}
+                onNavigate={(type, id) => {
+                    console.log('Navigate to:', type, id);
+                    if (type === 'LEAGUE') {
+                        // Scroll to header logic or nav
+                    }
+                }}
             />
         </div>
     );
