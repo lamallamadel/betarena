@@ -159,8 +159,8 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2940&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
 
-                <div className="absolute top-0 w-full p-4 pt-12 flex justify-between items-center z-10">
-                    <button onClick={() => onNavigate('HOME')} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors"><ChevronLeft size={20} /></button>
+                <div className="absolute top-0 w-full p-4 pt-12 flex justify-between items-center z-20">
+                    <button onClick={(e) => { e.stopPropagation(); onNavigate('HOME'); }} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors z-50"><ChevronLeft size={20} /></button>
                     <span className="px-3 py-1 rounded-full bg-slate-950/50 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {match.status === 'LIVE' ? match.time : match.competition}
                     </span>
