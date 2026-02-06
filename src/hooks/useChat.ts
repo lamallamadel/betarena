@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, where, limit, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
-import type {MessageType} from "../types/types.ts";
+import type { MessageType } from "../types/types.ts";
 
 
 // RG-D01 : Auto-Modération (Liste basique à étendre)
@@ -10,6 +10,7 @@ const BLACKLIST = ["merde", "arnaque", "connard", "salaud", "escroc"];
 export const useChat = (roomId: string, user: any, profile: any, isGuest: boolean) => {
   const [messages, setMessages] = useState<any[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!user) return;
@@ -30,10 +31,18 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
     // Droits d'accès (Module D.3)
     if (isGuest) throw new Error("Mode Invité : Lecture seule");
 
+    // RG-D03 : Check Anti-Flood (2s)
+    const now = Date.now();
+    if (lastMessageTimeRef.current && now - lastMessageTimeRef.current < 2000) {
+      throw new Error("Veuillez ralentir (2s entre messages)");
+    }
+
     // RG-D01 : Regex Filter
     if (type === 'TEXT' && BLACKLIST.some(w => content.toLowerCase().includes(w))) {
       throw new Error("Message bloqué : Contenu inapproprié");
     }
+
+    lastMessageTimeRef.current = now;
 
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'messages'), {
       roomId,
@@ -45,5 +54,14 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
     });
   };
 
-  return { messages, sendMessage, chatEndRef };
+  const reportMessage = async (messageId: string) => {
+    if (!user) return;
+    const msgRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'messages', messageId);
+    await updateDoc(msgRef, {
+      isReported: true,
+      reportCount: 1 // Simple increment logic would need transaction for real app
+    });
+  };
+
+  return { messages, sendMessage, reportMessage, chatEndRef };
 };

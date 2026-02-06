@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
-    Activity, ChevronLeft, Share2, Timer, Coins, Clock, Send, Info, Users, Award
+    Activity, ChevronLeft, Share2, Timer, Coins, Clock, Info, Users, Award
 } from 'lucide-react';
 import { SoccerPitch } from './SoccerPitch';
 import { PredictionTrends } from './PredictionTrends';
+import { ChatRoom } from '../social/chatRoom';
+import { useChat } from '../../hooks/useChat';
 import type { RichUserProfile } from '../../types/types';
 
 interface MatchCenterViewProps {
@@ -36,13 +38,21 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     isPariMutuel = false, poolStats
 }) => {
     const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
+    const [activeRoom, setActiveRoom] = useState<string>('GLOBAL');
+    // Adapt user/profile for useChat (expects auth user + profile data)
+    const { messages, sendMessage, reportMessage, chatEndRef } = useChat(
+        activeRoom,
+        { uid: user.uid }, // Mock auth user object
+        { pseudo: user.username, ...user }, // Mock profile object with pseudo
+        false
+    );
+
     const [activeLineupTeam, setActiveLineupTeam] = useState<'home' | 'away'>('home');
     const [pronoType, setPronoType] = useState<'1N2' | 'EXACT_SCORE'>('1N2');
     const [betAmount, setBetAmount] = useState(100);
     const [selectedOdd, setSelectedOdd] = useState<{ label: string, val: number } | null>(null);
     const [scoreHome, setScoreHome] = useState(0);
     const [scoreAway, setScoreAway] = useState(0);
-    const [chatMsg, setChatMsg] = useState('');
 
     const isConfirmed = match.lineups?.confirmed;
 
@@ -469,12 +479,17 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 )}
 
                 {matchTab === 'chat' && (
-                    <div className="h-full flex flex-col justify-between pb-10">
-                        <div className="space-y-3">
-                            <div className="flex gap-2"><div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px]">👤</div><div className="bg-slate-900 p-2 rounded-xl rounded-tl-none text-xs text-slate-300">Allez l'OM !!</div></div>
-                            <div className="flex gap-2 flex-row-reverse"><div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-[10px]">🦁</div><div className="bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-xl rounded-tr-none text-xs text-emerald-400">Jamais de la vie, Paris ce soir.</div></div>
-                        </div>
-                        <div className="bg-slate-900 p-2 rounded-xl flex gap-2 border border-slate-800"><input value={chatMsg} onChange={e => setChatMsg(e.target.value)} placeholder="Message..." className="bg-transparent flex-1 text-xs text-white outline-none pl-2" /><button className="p-2 bg-emerald-500 rounded-lg text-black"><Send size={14} /></button></div>
+                    <div className="h-full flex flex-col pb-2">
+                        <ChatRoom
+                            messages={messages}
+                            onSendMessage={sendMessage}
+                            onReportMessage={reportMessage}
+                            activeRoom={activeRoom}
+                            setActiveRoom={setActiveRoom}
+                            chatEndRef={chatEndRef}
+                            currentUserId={user.uid}
+                            matchId={`match-${match.id || 'default'}`}
+                        />
                     </div>
                 )}
             </div>

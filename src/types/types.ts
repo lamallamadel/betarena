@@ -61,6 +61,7 @@ export interface Prediction {
 }
 
 export interface RichUserProfile {
+  uid: string; // Added for compatibility
   username: string;
   avatar: string;
   frame: string;
