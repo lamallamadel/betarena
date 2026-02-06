@@ -160,6 +160,7 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
    * RG-B02: Calcule le gain selon le mode de la compétition
    * - ODDS_MULTIPLIER: mise × cote
    * - FIXED: points fixes définis par compétition
+   * - PARI_MUTUEL: (mise / total_mises_gagnantes) × total_pool
    */
   const calculateGain = (
     prediction: {
@@ -168,11 +169,24 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
       odd: number | null;
     },
     competitionRules: {
-      calculation_mode: 'ODDS_MULTIPLIER' | 'FIXED';
+      calculation_mode: 'ODDS_MULTIPLIER' | 'FIXED' | 'PARI_MUTUEL';
       points_correct_1n2: number | null;
       points_correct_score: number | null;
+    },
+    poolData?: {
+      totalPool: number;
+      winningBetsTotal: number;
     }
   ): number => {
+    if (competitionRules.calculation_mode === 'PARI_MUTUEL' && poolData) {
+      // Mode PARI_MUTUEL: (mise / total_mises_gagnantes) × total_pool
+      if (poolData.winningBetsTotal === 0) {
+        // Si personne n'a gagné, le pool entier revient au gagnant
+        return poolData.totalPool;
+      }
+      return Math.floor((prediction.amount / poolData.winningBetsTotal) * poolData.totalPool);
+    }
+
     if (competitionRules.calculation_mode === 'FIXED') {
       // Mode FIXED: points définis par la compétition
       if (prediction.type === '1N2') {
@@ -190,6 +204,29 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
       // Fallback si pas de cote
       return RULES.GAINS[prediction.type] || 0;
     }
+  };
+
+  /**
+   * Estime le gain potentiel en mode PARI_MUTUEL
+   * Formule: (mise / (mises_sur_choix + mise)) × total_pool
+   * Cette estimation est dynamique et change selon les paris des autres joueurs
+   */
+  const estimatePariMutuelGain = (
+    betAmount: number,
+    selection: string,
+    poolStats: {
+      totalPool: number;
+      betsOnSelection: number; // Montant total misé sur cette sélection
+    }
+  ): number => {
+    // Le nouveau total sur cette sélection après notre mise
+    const newBetsOnSelection = poolStats.betsOnSelection + betAmount;
+    // Le nouveau pool total après notre mise
+    const newTotalPool = poolStats.totalPool + betAmount;
+
+    // Estimation: si notre sélection gagne, on récupère une part proportionnelle du pool
+    if (newBetsOnSelection === 0) return newTotalPool;
+    return Math.floor((betAmount / newBetsOnSelection) * newTotalPool);
   };
 
   /**
@@ -274,6 +311,7 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     // Module B exports
     determineWinner,
     calculateGain,
-    resolveBet
+    resolveBet,
+    estimatePariMutuelGain
   };
 };

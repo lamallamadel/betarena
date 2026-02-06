@@ -18,12 +18,22 @@ interface MatchCenterViewProps {
     // SFD: Existing bet for "Update" button
     existingBet1N2?: any;
     existingBetScore?: any;
+    // SFD Phase 4: Pari Mutuel mode
+    isPariMutuel?: boolean;
+    poolStats?: {
+        totalPool: number;
+        betsOn1: number;
+        betsOnN: number;
+        betsOn2: number;
+        betsOnScores: Record<string, number>;
+    };
 }
 
 export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     match, user, onNavigate, onPlaceBet, onShare,
     is1N2Locked = false, isScoreLocked = false,
-    existingBet1N2, existingBetScore
+    existingBet1N2, existingBetScore,
+    isPariMutuel = false, poolStats
 }) => {
     const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
     const [activeLineupTeam, setActiveLineupTeam] = useState<'home' | 'away'>('home');
@@ -377,9 +387,30 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                                     </div>
 
                                     <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl mb-4 flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase">Gain Potentiel</span>
-                                        <span className="text-lg font-black text-yellow-500 flex items-center gap-1">
-                                            {Math.floor(betAmount * 3.5)} <Coins size={14} />
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                                {isPariMutuel ? 'Gain Estimé' : 'Gain Potentiel'}
+                                            </span>
+                                            {isPariMutuel && (
+                                                <span className="text-[8px] text-slate-600">Varie selon les mises</span>
+                                            )}
+                                        </div>
+                                        <span className={`text-lg font-black flex items-center gap-1 ${isPariMutuel ? 'text-orange-400' : 'text-yellow-500'}`}>
+                                            {(() => {
+                                                if (isPariMutuel && poolStats) {
+                                                    // Calcul Pari Mutuel: (mise / mises_sur_choix) × total_pool
+                                                    const score = `${scoreHome}-${scoreAway}`;
+                                                    const betsOnSelection = poolStats.betsOnScores?.[score] || 0;
+                                                    const newBetsOnSelection = betsOnSelection + betAmount;
+                                                    const newTotalPool = poolStats.totalPool + betAmount;
+                                                    return newBetsOnSelection > 0
+                                                        ? Math.floor((betAmount / newBetsOnSelection) * newTotalPool)
+                                                        : newTotalPool;
+                                                }
+                                                // Mode fixe: mise × cote
+                                                return Math.floor(betAmount * 3.5);
+                                            })()}
+                                            ~<Coins size={14} />
                                         </span>
                                     </div>
 
