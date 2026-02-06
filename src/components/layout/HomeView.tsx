@@ -4,6 +4,8 @@ import { MOCK_DATES, MOCK_LEAGUES, MOCK_MATCHES } from '../../data/mockData';
 import { MatchCard } from '../match/MatchCard';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
+import { FavoriteButton } from '../ui/FavoriteButton';
+import { GuestWallModal } from '../auth/GuestWallModal';
 import type { RichUserProfile } from '../../types/types';
 
 interface HomeViewProps {
@@ -28,6 +30,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
     }, [isSpoilerFree]);
 
     const toggleSpoilerMode = () => setIsSpoilerFree(!isSpoilerFree);
+
+    // Guest Wall Modal state
+    const [showGuestWall, setShowGuestWall] = useState(false);
 
     // Grouper les matchs par ligue (comme dans Maquette.tsx)
     const matchesByLeague = MOCK_MATCHES.reduce((acc: Record<string, any[]>, match) => {
@@ -60,8 +65,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                         <button
                             onClick={toggleSpoilerMode}
                             className={`p-2.5 rounded-full border transition-all active:scale-95 ${isSpoilerFree
-                                    ? 'bg-indigo-600 border-indigo-500 text-white'
-                                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
                                 }`}
                             title={isSpoilerFree ? 'Afficher les scores' : 'Masquer les scores'}
                         >
@@ -149,8 +154,13 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                         <div key={leagueName} className="animate-slide-up">
                             <div className="flex items-center gap-2 mb-3 px-1 sticky top-0 bg-slate-950/50 backdrop-blur-sm py-2 z-10">
                                 <span className="text-xl">{(MOCK_LEAGUES as Record<string, { country: string; logo: string }>)[leagueName]?.country || '🌍'}</span>
-                                <h3 className="text-sm font-black text-white uppercase tracking-wide">{leagueName}</h3>
-                                <div className="h-px bg-slate-800 flex-1 ml-2" />
+                                <h3 className="text-sm font-black text-white uppercase tracking-wide flex-1">{leagueName}</h3>
+                                <FavoriteButton
+                                    entityType="LEAGUE"
+                                    entityId={leagueName}
+                                    size="sm"
+                                    onGuestBlock={() => setShowGuestWall(true)}
+                                />
                                 <ChevronDown size={14} className="text-slate-600" />
                             </div>
                             <div className="space-y-2">
@@ -162,6 +172,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                     ))}
                 </div>
             </main>
+
+            {/* Guest Wall Modal */}
+            <GuestWallModal
+                isOpen={showGuestWall}
+                onClose={() => setShowGuestWall(false)}
+                onLogin={() => setShowGuestWall(false)}
+                onSignup={() => setShowGuestWall(false)}
+            />
         </div>
     );
 };

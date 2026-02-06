@@ -17,6 +17,7 @@ import { ShopView } from './components/shop/ShopView';
 import { Onboarding } from './components/auth/Onboarding';
 import { ShareStoryModal } from './components/social/ShareStoryModal';
 import { AdminApp } from './components/admin';
+import { StandingsTable } from './components/standings';
 
 // UI Components
 import { ToastNotification } from './components/ui/ToastNotification';
@@ -108,6 +109,14 @@ export default function App() {
     // Admin mode (access via ?admin=true in URL)
     const isAdminMode = window.location.search.includes('admin=true');
     if (isAdminMode) return <AdminApp />;
+
+    // Standings mode (access via ?standings=true in URL)
+    const isStandingsMode = window.location.search.includes('standings=true');
+    if (isStandingsMode) return (
+        <div className="h-screen bg-slate-950 p-4 overflow-y-auto">
+            <StandingsTable />
+        </div>
+    );
 
     return (
         <div className="h-screen bg-slate-950 flex justify-center overflow-hidden font-sans select-none text-slate-200">
