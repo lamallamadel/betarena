@@ -68,17 +68,18 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
    * Place un pari
    * @param type - Type de pari ('1N2' | 'EXACT_SCORE')
    * @param selection - Sélection ('1', 'N', '2' pour 1N2, '2-1' pour score exact)
-   * @param amount - Montant de la mise (utilisé pour l'affichage, le coût réel est RULES.COST)
+   * @param amount - Montant de la mise (variable selon SFD Flux B)
    * @param odd - Cote optionnelle pour calcul gain potentiel
    */
   const placeBet = async (
     type: PredictionType,
     selection: string,
-    _amount: number,
+    amount: number,
     odd?: { label: string; val: number } | null
   ): Promise<void> => {
     if (!userId) throw new Error("Non connecté");
     if (!matchId) throw new Error("Match non sélectionné");
+    if (amount <= 0) throw new Error("Mise invalide");
 
     // Application RG-A01 & RG-A02
     if (type === '1N2' && is1N2Locked()) {
@@ -97,27 +98,31 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
       const predDoc = await t.get(predRef);
 
       const currentCoins = userDoc.data()?.coins || 0;
-      const isUpdate = predDoc.exists(); // RG-A03: Si update, on a déjà payé
+      const isUpdate = predDoc.exists();
+      const previousStake = isUpdate ? (predDoc.data()?.amount || 0) : 0;
 
-      // Flux Alternatif : Solde insuffisant
-      if (!isUpdate && currentCoins < RULES.COST) {
-        throw new Error("Coins insuffisants");
+      // SFD Flux B: Transaction Atomique
+      // 1. Calcul du solde après remboursement éventuel
+      const balanceAfterRefund = currentCoins + previousStake;
+
+      // 2. Vérification du solde total disponible
+      if (balanceAfterRefund < amount) {
+        throw new Error(`Solde insuffisant pour cette mise (disponible: ${balanceAfterRefund}, requis: ${amount})`);
       }
 
-      // RG-A03 : Débit immédiat
-      if (!isUpdate) {
-        t.update(userRef, { coins: currentCoins - RULES.COST });
-      }
+      // 3. Calcul du nouveau solde: Remboursement - Nouvelle mise
+      const newBalance = balanceAfterRefund - amount;
+      t.update(userRef, { coins: newBalance });
 
       // Calcul du gain potentiel
       const potentialGain = odd
-        ? Math.floor(RULES.COST * odd.val)
-        : RULES.GAINS[type] || 0;
+        ? Math.floor(amount * odd.val)
+        : Math.floor(amount * (RULES.GAINS[type] / RULES.COST));
 
       t.set(predRef, {
         type,
         selection,
-        amount: RULES.COST,
+        amount, // Mise variable
         potentialGain,
         odd: odd?.val || null,
         timestamp: Date.now(),

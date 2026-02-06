@@ -220,19 +220,33 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                         </div>
 
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-[24px]">
-                            {/* Sélecteur de Mise */}
-                            <div className="flex justify-between items-center mb-4">
-                                <span className="text-xs font-black text-white uppercase">💰 Mise</span>
-                                <div className="flex gap-2">
-                                    {[50, 100, 200].map(v => (
-                                        <button
-                                            key={v}
-                                            onClick={() => setBetAmount(v)}
-                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all ${betAmount === v ? 'bg-emerald-500 border-emerald-500 text-black scale-105' : 'border-slate-800 text-slate-500'}`}
-                                        >
-                                            {v}
-                                        </button>
-                                    ))}
+                            {/* Sélecteur de Mise - Variable (SFD Flux B) */}
+                            <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-black text-white uppercase">💰 Mise</span>
+                                    <span className="text-[10px] text-slate-500">Solde: {user.coins} 🪙</span>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max={user.coins}
+                                        value={betAmount}
+                                        onChange={(e) => setBetAmount(Math.max(10, parseInt(e.target.value) || 10))}
+                                        className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-black text-center focus:border-emerald-500 focus:outline-none transition-colors"
+                                    />
+                                    <div className="flex gap-1 flex-1">
+                                        {[50, 100, 200, 500].map(v => (
+                                            <button
+                                                key={v}
+                                                onClick={() => setBetAmount(v)}
+                                                disabled={v > user.coins}
+                                                className={`flex-1 py-2 rounded-lg text-[9px] font-black border transition-all ${betAmount === v ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-800 text-slate-500 hover:border-slate-600'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
