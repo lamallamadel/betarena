@@ -29,7 +29,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
     const favoriteMatches = MOCK_MATCHES.filter(m => m.favorite);
 
     return (
-        <>
+        <div className="flex flex-col h-full overflow-y-auto">
             <header className="pt-12 pb-2 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-900">
                 {/* Top Bar */}
                 <div className="px-5 flex justify-between items-center mb-4">
@@ -133,6 +133,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                     ))}
                 </div>
             </main>
-        </>
+        </div>
     );
 };
