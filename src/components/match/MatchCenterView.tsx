@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ChevronLeft, Share2, Coins, Clock, Info, Users
 } from 'lucide-react';
@@ -106,6 +106,21 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
 
 
 
+    // Helper to format minute to MM:SS (Simulated for this demo, usually backend provides specific time)
+    // In a real scenario, we might have a `startTime` timestamp and calculate diff.
+    // For this prototype using `minute` integer:
+    const formatMatchTime = (min: any) => {
+        if (!min && min !== 0) return "--:--";
+        if (typeof min === 'string' && min.includes(':')) return min; // Already formatted
+        return `${min}:00`; // Simple XX:00 for integer minutes
+    };
+
+    const extractTime = (timeStr: any) => {
+        if (!timeStr) return "À VENIR";
+        // If it looks like "20:00", return it. If it's a date object, format it.
+        return timeStr.toString().replace('LIVE ', ''); // Cleanup
+    };
+
     return (
         <div className="flex flex-col h-full bg-slate-950 animate-slide-up relative overflow-hidden">
             {/* GOAL OVERLAY */}
@@ -146,17 +161,18 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                         {/* SCORE */}
                         <div className="flex flex-col items-center gap-1 w-1/3 relative z-10 box-border">
                             <div className="bg-slate-800/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700 shadow-xl mb-2">
-                                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-widest">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live
+                                <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-widest ${match.status === 'LIVE' ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                    {match.status === 'LIVE' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                                    {match.status === 'LIVE' ? 'LIVE' : match.status === 'HT' ? 'MI-TEMPS' : match.status === 'FINISHED' ? 'TERMINÉ' : extractTime(match.time)}
                                 </span>
                             </div>
                             <div className="text-5xl font-black text-white tracking-tighter tabular-nums drop-shadow-2xl flex items-center gap-2">
-                                <span className="animate-in slide-in-from-left duration-300">{currentHomeScore}</span>
+                                <span key={`home-${currentHomeScore}`} className="animate-pulse-once">{currentHomeScore}</span>
                                 <span className="text-slate-600 text-3xl">:</span>
-                                <span className="animate-in slide-in-from-right duration-300">{currentAwayScore}</span>
+                                <span key={`away-${currentAwayScore}`} className="animate-pulse-once">{currentAwayScore}</span>
                             </div>
-                            <span className="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                                {currentMinute}'
+                            <span className={`font-mono font-bold text-sm px-2 py-0.5 rounded border ${match.status === 'LIVE' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-slate-500 bg-slate-800/50 border-slate-700'}`}>
+                                {formatMatchTime(currentMinute)}
                             </span>
                         </div>
 

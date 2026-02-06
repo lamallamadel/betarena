@@ -1,5 +1,5 @@
 import { db, APP_ID } from '../config/firebase';
-import { doc, collection, addDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, collection, addDoc, setDoc, increment } from 'firebase/firestore';
 import type { MatchEventType } from '../types/types';
 
 // Helper to write to Firestore (Dev/Admin only)
@@ -12,7 +12,7 @@ export const MatchSimulator = {
         await addDoc(eventsRef, {
             match_id: matchId,
             type: 'GOAL',
-            minute,
+            minute: minute || 0,
             team,
             player_main: player,
             text: `But - ${player}`,
@@ -20,11 +20,14 @@ export const MatchSimulator = {
             is_cancelled: false
         });
 
-        // 2. Update Score
-        await updateDoc(matchRef, {
+        // 2. Update Score (Safe create if not exists)
+        await setDoc(matchRef, {
             [`${team}Score`]: increment(1),
-            minute // Sync minute
-        });
+            minute, // Sync minute
+            // Ensure ID is set if creating
+            id: matchId,
+            status: 'LIVE' // Force status if creating
+        }, { merge: true });
     },
 
     async triggerEvent(matchId: string, type: MatchEventType, team: 'home' | 'away' | 'system', text: string, minute: number) {
@@ -32,7 +35,7 @@ export const MatchSimulator = {
         await addDoc(eventsRef, {
             match_id: matchId,
             type,
-            minute,
+            minute: minute || 0,
             team,
             text,
             timestamp: Date.now()
@@ -44,31 +47,29 @@ export const MatchSimulator = {
         const eventRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'match_events', eventId);
 
         // 1. Mark event as cancelled
-        await updateDoc(eventRef, {
+        await setDoc(eventRef, {
             is_cancelled: true,
-            type: 'VAR' // Optional: Change type or keep original and just flag it
-        });
+            type: 'VAR'
+        }, { merge: true });
 
         // 2. Revert Score (if it was a goal)
-        // Note: In real app, we should check if event was GOAL. Assuming YES for this button.
-        await updateDoc(matchRef, {
+        await setDoc(matchRef, {
             [`${team}Score`]: increment(-1)
-        });
+        }, { merge: true });
     },
 
     async updateMinute(matchId: string, minute: number) {
         const matchRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'matches', matchId);
-        await updateDoc(matchRef, { minute });
+        await setDoc(matchRef, { minute }, { merge: true });
     },
 
     async resetMatch(matchId: string) {
         const matchRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'matches', matchId);
-        await updateDoc(matchRef, {
+        await setDoc(matchRef, {
             homeScore: 0,
             awayScore: 0,
             minute: 0,
             status: 'LIVE'
-        });
-        // Note: Deleting events is harder without a cloud function, ignoring for now (events will pile up or we filter by timestamp/session)
+        }, { merge: true });
     }
 };
