@@ -67,9 +67,17 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     const [showGoalOverlay, setShowGoalOverlay] = useState<{ team: string, player: string } | null>(null);
     const [showShareModal, setShowShareModal] = useState(false);
     const lastEventIdRef = React.useRef<string | null>(null);
+    const isInitialLoadRef = React.useRef(true); // Skip events on first load
 
     useEffect(() => {
         if (events.length > 0) {
+            // Skip the first load of events (they are historical)
+            if (isInitialLoadRef.current) {
+                isInitialLoadRef.current = false;
+                lastEventIdRef.current = events[0]?.id || null;
+                return;
+            }
+
             const latest = events[0];
             // Only trigger if new event AND it's a Goal AND it's not cancelled
             if (latest.id !== lastEventIdRef.current) {
