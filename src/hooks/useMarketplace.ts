@@ -357,14 +357,14 @@ export const useMarketplace = (userId: string | undefined) => {
     ];
   };
 
-  /** Nombre maximum de tirages selon la rareté */
+  /** RG-L03: Nombre maximum de tirages selon la rareté */
   const getMaxSupplyForScarcity = (scarcity: CardScarcity): number => {
     switch (scarcity) {
-      case 'LEGENDARY': return 10;
-      case 'EPIC': return 100;
-      case 'RARE': return 1000;
-      case 'COMMON': return 10000;
-      default: return 10000;
+      case 'LEGENDARY': return 1;    // 1 copie unique
+      case 'EPIC': return 10;        // 10 copies max
+      case 'RARE': return 100;       // 100 copies max
+      case 'COMMON': return Infinity; // Illimité (achat Banque permanent)
+      default: return Infinity;
     }
   };
 

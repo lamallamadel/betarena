@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 
 interface AdminLog {
@@ -135,20 +135,46 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
                 locked: data.lockFromApi
             });
 
-            // Process bets based on strategy (simplified)
-            if (data.strategy === 'ROLLBACK') {
-                console.log('[Admin] Processing ROLLBACK strategy for match:', data.matchId);
-                // In production: 
-                // 1. Find all bets on this match with status WON
-                // 2. Debit their winnings
-                // 3. Find all bets matching new score
-                // 4. Credit their winnings
-            } else {
-                console.log('[Admin] Processing HOUSE_LOSS strategy for match:', data.matchId);
-                // In production:
-                // 1. Keep existing WON bets as-is
-                // 2. Find all bets matching new score
-                // 3. Credit their winnings (double payout scenario)
+            // RG-G03: Process bets based on strategy
+            const usersSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'users'));
+
+            for (const userDoc of usersSnap.docs) {
+                const predictionsRef = collection(db, 'artifacts', APP_ID, 'users', userDoc.id, 'predictions');
+                const betsQuery = query(predictionsRef, where('matchId', '==', data.matchId));
+                const betsSnap = await getDocs(betsQuery);
+
+                for (const betDoc of betsSnap.docs) {
+                    const bet = betDoc.data();
+                    const newScore = `${data.newScore.home}-${data.newScore.away}`;
+                    const newWinner = data.newScore.home > data.newScore.away ? '1' : data.newScore.home < data.newScore.away ? '2' : 'N';
+
+                    const isWinnerNow = (bet.type === '1N2' && bet.selection === newWinner) ||
+                                        (bet.type === 'EXACT_SCORE' && bet.selection === newScore);
+
+                    const profileRef = doc(db, 'artifacts', APP_ID, 'users', userDoc.id, 'data', 'profile');
+
+                    if (data.strategy === 'ROLLBACK') {
+                      // ROLLBACK: annuler anciens gains, recalculer sur nouveau score
+                      if (bet.status === 'WON') {
+                        // Débiter l'ancien gain
+                        await updateDoc(profileRef, { coins: increment(-(bet.gain || 0)) });
+                      }
+                      if (isWinnerNow) {
+                        const gain = bet.potentialGain || bet.amount * 2;
+                        await updateDoc(betDoc.ref, { status: 'WON', gain, resolvedAt: Date.now() });
+                        await updateDoc(profileRef, { coins: increment(gain) });
+                      } else if (bet.status === 'WON') {
+                        await updateDoc(betDoc.ref, { status: 'LOST', gain: 0, resolvedAt: Date.now() });
+                      }
+                    } else {
+                      // HOUSE_LOSS: garder anciens gagnants, créditer nouveaux aussi
+                      if (isWinnerNow && bet.status !== 'WON') {
+                        const gain = bet.potentialGain || bet.amount * 2;
+                        await updateDoc(betDoc.ref, { status: 'WON', gain, resolvedAt: Date.now() });
+                        await updateDoc(profileRef, { coins: increment(gain) });
+                      }
+                    }
+                }
             }
 
             // Refresh matches

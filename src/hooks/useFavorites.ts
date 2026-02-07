@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db, APP_ID } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
 export type FavoriteEntityType = 'TEAM' | 'LEAGUE' | 'MATCH';
@@ -16,72 +18,85 @@ interface UseFavoritesReturn {
     getFavoriteCount: () => number;
 }
 
-const STORAGE_KEY = 'betarena_favorites';
-
 /**
  * Hook pour gérer les favoris (équipes, ligues, matchs)
- * RG-J: Persistence localStorage + sync Firestore si connecté
+ * RG-J04: Stockage server-side Firestore lié au user_id
+ * Pas de stockage local pour les invités — action bloquante
  */
 export const useFavorites = (): UseFavoritesReturn => {
     const { user } = useAuth();
 
-    // Initialize from localStorage
-    const [favorites, setFavorites] = useState<Favorites>(() => {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                return JSON.parse(saved);
-            }
-        } catch (e) {
-            console.error('[useFavorites] Error loading from localStorage:', e);
-        }
-        return { teams: [], leagues: [], matches: [] };
+    const [favorites, setFavorites] = useState<Favorites>({
+        teams: [], leagues: [], matches: []
     });
 
-    // Persist to localStorage on change
+    // Listen to Firestore favorites in real-time
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
-    }, [favorites]);
+        if (!user?.uid) {
+            setFavorites({ teams: [], leagues: [], matches: [] });
+            return;
+        }
+
+        const favRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'data', 'favorites');
+        const unsub = onSnapshot(favRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                setFavorites({
+                    teams: data.teams || [],
+                    leagues: data.leagues || [],
+                    matches: data.matches || [],
+                });
+            } else {
+                setFavorites({ teams: [], leagues: [], matches: [] });
+            }
+        });
+
+        return () => unsub();
+    }, [user?.uid]);
+
+    const getKey = (entityType: FavoriteEntityType): 'teams' | 'leagues' | 'matches' => {
+        return entityType === 'TEAM' ? 'teams' : entityType === 'LEAGUE' ? 'leagues' : 'matches';
+    };
 
     // Check if entity is favorite
     const isFavorite = useCallback((entityType: FavoriteEntityType, entityId: string): boolean => {
-        switch (entityType) {
-            case 'TEAM': return favorites.teams.includes(entityId);
-            case 'LEAGUE': return favorites.leagues.includes(entityId);
-            case 'MATCH': return favorites.matches.includes(entityId);
-            default: return false;
-        }
+        const key = getKey(entityType);
+        return favorites[key].includes(entityId);
     }, [favorites]);
 
-    // Toggle favorite - returns true if user is logged in (action allowed)
+    // Toggle favorite — returns true if user is logged in (action allowed)
     const toggleFavorite = useCallback((entityType: FavoriteEntityType, entityId: string): boolean => {
-        // Check if user is logged in
-        if (!user) {
-            // Return false to indicate guest wall should be shown
-            return false;
+        if (!user?.uid) {
+            return false; // Guest wall
         }
 
-        setFavorites(prev => {
-            const key = entityType === 'TEAM' ? 'teams' : entityType === 'LEAGUE' ? 'leagues' : 'matches';
-            const current = prev[key];
+        const key = getKey(entityType);
+        const favRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'data', 'favorites');
+        const isCurrentlyFav = favorites[key].includes(entityId);
 
-            if (current.includes(entityId)) {
-                // Remove from favorites
-                return {
-                    ...prev,
-                    [key]: current.filter(id => id !== entityId)
-                };
-            } else {
-                // Add to favorites
-                return {
-                    ...prev,
-                    [key]: [...current, entityId]
-                };
+        // Optimistic update
+        setFavorites(prev => ({
+            ...prev,
+            [key]: isCurrentlyFav
+                ? prev[key].filter(id => id !== entityId)
+                : [...prev[key], entityId]
+        }));
+
+        // Persist to Firestore
+        const update = isCurrentlyFav
+            ? { [key]: arrayRemove(entityId) }
+            : { [key]: arrayUnion(entityId) };
+
+        updateDoc(favRef, update).catch((err) => {
+            // If doc doesn't exist yet, create it
+            if (err.code === 'not-found') {
+                const { setDoc } = require('firebase/firestore');
+                setDoc(favRef, { teams: [], leagues: [], matches: [], [key]: [entityId] });
             }
         });
 
         return true;
-    }, [user]);
+    }, [user?.uid, favorites]);
 
     // Get total favorite count
     const getFavoriteCount = useCallback((): number => {

@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, serverTimestamp, increment, runTransaction } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 import type { MessageType } from "../types/types.ts";
 
 
 // RG-D01 : Auto-Modération (Liste basique à étendre)
 const BLACKLIST = ["merde", "arnaque", "connard", "salaud", "escroc"];
+// RG-D01 : Max 280 caractères par message
+const MAX_MESSAGE_LENGTH = 280;
+// RG-D02 : Seuil auto-hide après X signalements
+const AUTO_HIDE_REPORT_THRESHOLD = 3;
 
 export const useChat = (roomId: string, user: any, profile: any, isGuest: boolean) => {
   const [messages, setMessages] = useState<any[]>([]);
@@ -74,6 +78,11 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
       throw new Error("Veuillez ralentir (2s entre messages)");
     }
 
+    // RG-D01 : Limite 280 caractères
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      throw new Error(`Message trop long (max ${MAX_MESSAGE_LENGTH} caractères)`);
+    }
+
     // RG-D01 : Regex Filter
     if (type === 'TEXT' && BLACKLIST.some(w => content.toLowerCase().includes(w))) {
       throw new Error("Message bloqué : Contenu inapproprié");
@@ -91,12 +100,24 @@ export const useChat = (roomId: string, user: any, profile: any, isGuest: boolea
     });
   };
 
+  // RG-D02 : Signalement avec auto-hide après X reports (atomic)
   const reportMessage = async (messageId: string) => {
     if (!user) return;
     const msgRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'messages', messageId);
-    await updateDoc(msgRef, {
-      isReported: true,
-      reportCount: 1 // Simple increment logic would need transaction for real app
+
+    await runTransaction(db, async (t) => {
+      const msgDoc = await t.get(msgRef);
+      if (!msgDoc.exists()) return;
+
+      const data = msgDoc.data();
+      const newCount = (data.reportCount || 0) + 1;
+      const isHidden = newCount >= AUTO_HIDE_REPORT_THRESHOLD;
+
+      t.update(msgRef, {
+        reportCount: newCount,
+        isReported: true,
+        isHidden, // Auto-hide si seuil atteint
+      });
     });
   };
 

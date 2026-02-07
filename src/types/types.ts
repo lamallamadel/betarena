@@ -160,7 +160,7 @@ export interface PriceHistory {
 // MODULE M: Gestion d'Équipe (Ultimate Fantazia)
 // ============================================
 
-export type GameweekStatus = 'OPEN' | 'LIVE' | 'FINISHED';
+export type GameweekStatus = 'OPEN' | 'LIVE' | 'FINISHED' | 'RESOLVED';
 export type Formation = '4-4-2' | '4-3-3' | '3-5-2' | '5-3-2' | '3-4-3' | '4-5-1';
 export type LineupStatus = 'DRAFT' | 'SAVED' | 'LOCKED';
 
