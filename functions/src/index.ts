@@ -27,6 +27,12 @@ setGlobalOptions({ maxInstances: 10 });
 // Export Resolution Engine functions
 export { resolveMatch, onMatchFinished } from "./resolveMatch";
 
+// Export Fantasy Team (Module M) functions
+export { resolveGameweek, onGameweekLive } from "./resolveGameweek";
+
+// Export Blitz (Module N) functions
+export { resolveBlitz } from "./resolveBlitz";
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");

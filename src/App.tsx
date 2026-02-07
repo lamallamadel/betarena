@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, MessageSquare, Trophy, TrendingUp, User } from 'lucide-react';
+import { Layout, MessageSquare, Trophy, Swords, User } from 'lucide-react';
 
 // Hooks
 import { useAuth } from './context/AuthContext';
@@ -14,6 +14,10 @@ import { SocialView } from './components/social/SocialView';
 import { LeaderboardView } from './components/social/LeaderboardView';
 import { ProfileView } from './components/profile/ProfileView';
 import { ShopView } from './components/shop/ShopView';
+import { MarketplaceView } from './components/marketplace/MarketplaceView';
+import { InventoryView } from './components/marketplace/InventoryView';
+import { FantasyView } from './components/fantasy/FantasyView';
+import { BlitzView } from './components/blitz/BlitzView';
 import { Onboarding } from './components/auth/Onboarding';
 import { ShareStoryModal } from './components/social/ShareStoryModal';
 import { AdminApp } from './components/admin';
@@ -149,6 +153,10 @@ export default function App() {
                     {currentView === 'LEADERBOARD' && <LeaderboardView user={user} onNavigate={handleNavigate} />}
                     {currentView === 'PROFILE' && <ProfileView user={user} onNavigate={handleNavigate} />}
                     {currentView === 'SHOP' && <ShopView user={user} onNavigate={handleNavigate} onBuyItem={handleBuyItem} onEquipItem={(type, asset) => equipItem(type, asset)} />}
+                    {currentView === 'MARKETPLACE' && <MarketplaceView user={user} onNavigate={handleNavigate} />}
+                    {currentView === 'INVENTORY' && <InventoryView user={user} onNavigate={handleNavigate} />}
+                    {currentView === 'FANTASY' && <FantasyView user={user} onNavigate={handleNavigate} />}
+                    {currentView === 'BLITZ' && <BlitzView user={user} onNavigate={handleNavigate} />}
                     {currentView === 'MATCH' && selectedMatch && (
                         <MatchCenterView
                             match={selectedMatch}
@@ -170,7 +178,7 @@ export default function App() {
                 </main>
 
                 {/* BOTTOM NAVIGATION (Hidden in Match View) */}
-                {currentView !== 'MATCH' && (
+                {!['MATCH', 'MARKETPLACE', 'INVENTORY', 'BLITZ'].includes(currentView) && (
                     <nav className="shrink-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 px-6 py-4 pb-8 flex justify-between items-center z-40">
                         <button onClick={() => setCurrentView('HOME')} className={`flex flex-col items-center gap-1 font-black transition-colors ${currentView === 'HOME' ? 'text-emerald-500' : 'text-slate-600'}`}>
                             <Layout size={22} /><span className="text-[9px] uppercase tracking-wide">Matchs</span>
@@ -183,9 +191,8 @@ export default function App() {
                                 <Trophy size={26} />
                             </button>
                         </div>
-                        {/* Stats button non-functional as per Maquette */}
-                        <button className="flex flex-col items-center gap-1 text-slate-600 font-black opacity-50 cursor-not-allowed">
-                            <TrendingUp size={22} /><span className="text-[9px] uppercase tracking-wide">Stats</span>
+                        <button onClick={() => setCurrentView('FANTASY')} className={`flex flex-col items-center gap-1 font-black transition-colors ${currentView === 'FANTASY' || currentView === 'BLITZ' ? 'text-emerald-500' : 'text-slate-600'}`}>
+                            <Swords size={22} /><span className="text-[9px] uppercase tracking-wide">Jeux</span>
                         </button>
                         <button onClick={() => setCurrentView('PROFILE')} className={`flex flex-col items-center gap-1 font-black transition-colors ${currentView === 'PROFILE' ? 'text-emerald-500' : 'text-slate-600'}`}>
                             <User size={22} /><span className="text-[9px] uppercase tracking-wide">Profil</span>
