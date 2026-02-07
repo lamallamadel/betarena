@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-    ChevronLeft, Share2, Coins, Clock, Info, Users
+    ChevronLeft, Share2, Coins, Clock, Info, Users, RefreshCcw
 } from 'lucide-react';
 import { SoccerPitch } from './SoccerPitch';
 import { PredictionTrends } from './PredictionTrends';
 import { ChatRoom } from '../social/chatRoom';
+import { TeamLogo } from '../ui/TeamLogo';
 import { useChat } from '../../hooks/useChat';
 import { useMatchLive } from '../../hooks/useMatchLive';
 import { TimelineEvent } from './TimelineEvent';
@@ -60,9 +61,9 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     const { liveMatch, events } = useMatchLive(matchIdStr, match);
     // Use live data if available, else static props
     const currentMatch = liveMatch || match;
-    const currentHomeScore = currentMatch.homeScore ?? match.homeScore;
-    const currentAwayScore = currentMatch.awayScore ?? match.awayScore;
-    const currentMinute = currentMatch.minute ?? match.minute;
+    const currentHomeScore = currentMatch.score?.h ?? currentMatch.homeScore ?? 0;
+    const currentAwayScore = currentMatch.score?.a ?? currentMatch.awayScore ?? 0;
+    const currentMinute = currentMatch.minute ?? match.minute ?? 0;
 
     // GOAL ANIMATION LOGIC
     const [showGoalOverlay, setShowGoalOverlay] = useState<{ team: string, player: string } | null>(null);
@@ -163,7 +164,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 <div className="absolute top-0 w-full p-4 pt-12 flex justify-between items-center z-20">
                     <button onClick={(e) => { e.stopPropagation(); onNavigate('HOME'); }} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors z-50"><ChevronLeft size={20} /></button>
                     <span className="px-3 py-1 rounded-full bg-slate-950/50 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {match.status === 'LIVE' ? match.time : match.competition}
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {['LIVE', 'LIVE_1ST_HALF', 'LIVE_2ND_HALF', 'HALF_TIME'].includes(match.status) ? `LIVE ${currentMinute}'` : match.competition}
                     </span>
                     <button onClick={() => setShowShareModal(true)} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors"><Share2 size={18} /></button>
                 </div>
@@ -172,17 +173,18 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                     <div className="flex items-center justify-between w-full h-full relative z-10">
                         {/* HOME */}
                         <div className="flex flex-col items-center gap-2 w-1/3">
-                            <span className="text-4xl shadow-xl filter drop-shadow-lg transform hover:scale-110 transition-transform">{match.homeLogo}</span>
+                            <div className="transform hover:scale-110 transition-transform">
+                                <TeamLogo src={match.homeLogo} alt={match.home} size="xl" />
+                            </div>
                             <h2 className="text-lg font-black text-white uppercase tracking-tighter text-center leading-none">{match.home}</h2>
-                            {match.status === 'LIVE' && <div className="text-[10px] font-bold text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded backdrop-blur-md mt-1">4 Tirs</div>}
                         </div>
 
                         {/* SCORE */}
                         <div className="flex flex-col items-center gap-1 w-1/3 relative z-10 box-border">
                             <div className="bg-slate-800/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700 shadow-xl mb-2">
-                                <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-widest ${match.status === 'LIVE' ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                    {match.status === 'LIVE' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-                                    {match.status === 'LIVE' ? 'LIVE' : match.status === 'HT' ? 'MI-TEMPS' : match.status === 'FINISHED' ? 'TERMINÉ' : extractTime(match.time)}
+                                <span className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-widest ${['LIVE', 'LIVE_1ST_HALF', 'LIVE_2ND_HALF', 'HALF_TIME'].includes(currentMatch.status) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                    {['LIVE', 'LIVE_1ST_HALF', 'LIVE_2ND_HALF'].includes(currentMatch.status) && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                                    {['LIVE', 'LIVE_1ST_HALF', 'LIVE_2ND_HALF'].includes(currentMatch.status) ? 'LIVE' : currentMatch.status === 'HALF_TIME' ? 'MI-TEMPS' : currentMatch.status === 'FINISHED' ? 'TERMINÉ' : extractTime(match.time)}
                                 </span>
                             </div>
                             <div className="text-5xl font-black text-white tracking-tighter tabular-nums drop-shadow-2xl flex items-center gap-2">
@@ -197,9 +199,10 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
 
                         {/* AWAY */}
                         <div className="flex flex-col items-center gap-2 w-1/3">
-                            <span className="text-4xl shadow-xl filter drop-shadow-lg transform hover:scale-110 transition-transform">{match.awayLogo}</span>
+                            <div className="transform hover:scale-110 transition-transform">
+                                <TeamLogo src={match.awayLogo} alt={match.away} size="xl" />
+                            </div>
                             <h2 className="text-lg font-black text-white uppercase tracking-tighter text-center leading-none">{match.away}</h2>
-                            {match.status === 'LIVE' && <div className="text-[10px] font-bold text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded backdrop-blur-md mt-1">2 Tirs</div>}
                         </div>
                     </div>
                 </div>
@@ -212,6 +215,23 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'away', 'Away Player', currentMinute)} className="px-2 py-1 bg-pink-600 text-xs rounded text-white active:scale-95">Goal Away</button>
                 <button onClick={() => MatchSimulator.updateMinute(matchIdStr, currentMinute + 1)} className="px-2 py-1 bg-slate-700 text-xs rounded text-white active:scale-95">+1 Min</button>
                 <button onClick={() => events[0] && MatchSimulator.triggerVarCancel(matchIdStr, events[0].id, events[0].team as any)} className="px-2 py-1 bg-red-900/50 border border-red-500 text-red-400 text-xs rounded active:scale-95">VAR Cancel Last</button>
+                {match.api_id && (
+                    <button
+                        onClick={async () => {
+                            const { getFunctions, httpsCallable } = await import('firebase/functions');
+                            const functions = getFunctions();
+                            const syncLive = httpsCallable(functions, 'syncLiveMatch');
+                            try {
+                                await syncLive({ apiId: match.api_id });
+                            } catch (e) {
+                                console.error('Live sync error', e);
+                            }
+                        }}
+                        className="px-2 py-1 bg-emerald-700 text-xs rounded text-white active:scale-95 flex items-center gap-1"
+                    >
+                        <RefreshCcw size={12} /> Sync API
+                    </button>
+                )}
             </div>
 
             {/* TAB SELECTOR - 4 onglets comme Maquette */}
@@ -413,7 +433,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                                         <div className="flex items-center justify-center gap-4 mb-4">
                                             {/* Home Score */}
                                             <div className="flex flex-col items-center gap-2">
-                                                <span className="text-xl">{match.homeLogo}</span>
+                                                <TeamLogo src={match.homeLogo} alt={match.home} size="md" />
                                                 <div className={`flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 ${isScoreLocked ? 'opacity-50' : ''}`}>
                                                     <button
                                                         onClick={() => setScoreHome(Math.min(9, scoreHome + 1))}
@@ -437,7 +457,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
 
                                             {/* Away Score */}
                                             <div className="flex flex-col items-center gap-2">
-                                                <span className="text-xl">{match.awayLogo}</span>
+                                                <TeamLogo src={match.awayLogo} alt={match.away} size="md" />
                                                 <div className={`flex flex-col items-center gap-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 ${isScoreLocked ? 'opacity-50' : ''}`}>
                                                     <button
                                                         onClick={() => setScoreAway(Math.min(9, scoreAway + 1))}

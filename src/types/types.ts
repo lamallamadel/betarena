@@ -38,8 +38,12 @@ export interface Match {
   api_id?: number;
   competition: string;
   league_id?: number;
+  league_logo?: string;
+  league_round?: string;
   home: string;
   away: string;
+  home_id?: number;
+  away_id?: number;
   homeLogo: string;
   awayLogo: string;
   time: string;
@@ -56,6 +60,22 @@ export interface Match {
     a: number;
   };
   favorite?: boolean;
+  lineups?: {
+    confirmed: boolean;
+    home: {
+      formation: string;
+      starters: Array<{ name: string; num: number; pos?: string; x: number; y: number }>;
+      bench: string[];
+    };
+    away: {
+      formation: string;
+      starters: Array<{ name: string; num: number; pos?: string; x: number; y: number }>;
+      bench: string[];
+    };
+  };
+  referee?: string;
+  hadPenaltyShootout?: boolean;
+  penaltyScore?: { h: number; a: number } | null;
 }
 
 export interface Prediction {

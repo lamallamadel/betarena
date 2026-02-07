@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff, RefreshCcw } from 'lucide-react';
-import { MOCK_DATES, MOCK_LEAGUES } from '../../data/mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff, RefreshCcw, Loader2 } from 'lucide-react';
+import { MOCK_LEAGUES } from '../../data/mockData';
 import { MatchCard } from '../match/MatchCard';
+import { TeamLogo } from '../ui/TeamLogo';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
 import { FavoriteButton } from '../ui/FavoriteButton';
@@ -9,6 +10,25 @@ import { GuestWallModal } from '../auth/GuestWallModal';
 import { SearchOverlay } from '../search/SearchOverlay';
 import type { RichUserProfile } from '../../types/types';
 import { useMatchFeed } from '../../hooks/useMatchFeed';
+
+const DAY_LABELS_FR = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
+
+function generateDateNav() {
+    const dates = [];
+    for (let offset = -2; offset <= 4; offset++) {
+        const d = new Date();
+        d.setDate(d.getDate() + offset);
+        const dayName = DAY_LABELS_FR[d.getDay()];
+        const dayNum = String(d.getDate()).padStart(2, '0');
+        let label: string;
+        if (offset === -1) label = 'HIER';
+        else if (offset === 0) label = "AUJOURD'HUI";
+        else if (offset === 1) label = 'DEMAIN';
+        else label = dayName;
+        dates.push({ id: offset, label, short: `${dayName} ${dayNum}` });
+    }
+    return dates;
+}
 
 interface HomeViewProps {
     user: RichUserProfile;
@@ -18,9 +38,12 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchClick, toggleNotifications }) => {
-    const [selectedDate, setSelectedDate] = useState(0); // Index in MOCK_DATES
+    const [selectedDate, setSelectedDate] = useState(0);
+    const [syncing, setSyncing] = useState(false);
 
-    // Convert selected index to date string YYYY-MM-DD
+    const dateNav = useMemo(() => generateDateNav(), []);
+
+    // Convert selected offset to date string YYYY-MM-DD
     const dateObj = new Date();
     dateObj.setDate(dateObj.getDate() + selectedDate);
     const dateStr = dateObj.toISOString().split('T')[0];
@@ -84,21 +107,24 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                         {/* Refresh / Sync Button */}
                         <button
                             onClick={async () => {
-                                const { getFunctions, httpsCallable } = await import('firebase/functions');
-                                const functions = getFunctions();
-                                const syncFixturesFn = httpsCallable(functions, 'syncFixtures');
+                                setSyncing(true);
                                 try {
-                                    await syncFixturesFn({ date: dateStr });
-                                    alert('Synchronisation réussie !');
+                                    const { getFunctions, httpsCallable } = await import('firebase/functions');
+                                    const functions = getFunctions();
+                                    const syncFixturesFn = httpsCallable(functions, 'syncFixtures');
+                                    const result: any = await syncFixturesFn({ date: dateStr });
+                                    console.log('Sync result:', result.data);
                                 } catch (e) {
                                     console.error('Sync error', e);
-                                    alert('Erreur de synchronisation');
+                                } finally {
+                                    setSyncing(false);
                                 }
                             }}
-                            className="p-2.5 bg-slate-900 rounded-full border border-slate-800 text-slate-400 active:scale-95 transition-transform"
+                            disabled={syncing}
+                            className={`p-2.5 bg-slate-900 rounded-full border border-slate-800 text-slate-400 active:scale-95 transition-transform ${syncing ? 'animate-spin' : ''}`}
                             title="Synchroniser les matchs"
                         >
-                            <RefreshCcw size={18} />
+                            {syncing ? <Loader2 size={18} /> : <RefreshCcw size={18} />}
                         </button>
                         {/* Search Button */}
                         <button onClick={() => setShowSearch(true)} className="relative p-2 text-slate-400 hover:text-white transition-colors">
@@ -122,7 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                     <button className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 flex-shrink-0">
                         <Calendar size={18} />
                     </button>
-                    {MOCK_DATES.map((date) => (
+                    {dateNav.map((date) => (
                         <button
                             key={date.id}
                             onClick={() => setSelectedDate(date.id)}
@@ -139,6 +165,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
             </header>
 
             <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 no-scrollbar">
+                {loading && (
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 size={24} className="text-emerald-500 animate-spin" />
+                        <span className="text-xs text-slate-500 ml-2">Chargement...</span>
+                    </div>
+                )}
                 {/* Matchs Favoris (Carousel Horizontal) */}
                 <div className="mb-6">
                     <div className="flex justify-between items-end mb-3 px-1">
@@ -148,37 +180,40 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                         <span className="text-[10px] font-bold text-emerald-500">Voir tout</span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                        {favoriteMatches.map(match => (
-                            <div
-                                key={match.id}
-                                onClick={() => onMatchClick(match)}
-                                className="min-w-[260px] bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-4 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-transform"
-                            >
-                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><Trophy size={40} /></div>
-                                <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-3">
-                                    <span>{match.competition}</span>
-                                    {match.status === 'LIVE' && <span className="text-red-500 animate-pulse">LIVE {match.minute}'</span>}
+                        {favoriteMatches.map(match => {
+                            const isMatchLive = match.status === 'LIVE' || match.status === 'LIVE_1ST_HALF' || match.status === 'LIVE_2ND_HALF' || match.status === 'HALF_TIME';
+                            return (
+                                <div
+                                    key={match.id}
+                                    onClick={() => onMatchClick(match)}
+                                    className="min-w-[260px] bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-4 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-transform"
+                                >
+                                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><Trophy size={40} /></div>
+                                    <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-3">
+                                        <span>{match.competition}</span>
+                                        {isMatchLive && <span className="text-red-500 animate-pulse">LIVE {match.minute}'</span>}
+                                    </div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <TeamLogo src={match.homeLogo} alt={match.home} size="lg" />
+                                            <span className="text-xs font-bold text-white">{match.home}</span>
+                                        </div>
+                                        <div className="text-2xl font-black text-white bg-slate-900/50 px-3 py-1 rounded-lg backdrop-blur-sm">
+                                            {match.status === 'SCHEDULED'
+                                                ? 'VS'
+                                                : isSpoilerFree
+                                                    ? '? - ?'
+                                                    : `${match.score.h}-${match.score.a}`
+                                            }
+                                        </div>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <TeamLogo src={match.awayLogo} alt={match.away} size="lg" />
+                                            <span className="text-xs font-bold text-white">{match.away}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-3xl">{match.homeLogo}</span>
-                                        <span className="text-xs font-bold text-white">{match.home}</span>
-                                    </div>
-                                    <div className="text-2xl font-black text-white bg-slate-900/50 px-3 py-1 rounded-lg backdrop-blur-sm">
-                                        {match.status === 'SCHEDULED'
-                                            ? 'VS'
-                                            : isSpoilerFree
-                                                ? '? - ?'
-                                                : `${match.score.h}-${match.score.a}`
-                                        }
-                                    </div>
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-3xl">{match.awayLogo}</span>
-                                        <span className="text-xs font-bold text-white">{match.away}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
