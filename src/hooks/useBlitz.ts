@@ -41,19 +41,49 @@ const shuffle = <T,>(arr: T[]): T[] => {
 };
 
 // RG-N02: Generate a balanced pool of 15 cards (5 Gold, 5 Silver, 5 Bronze)
-// Ensure at least: 2 GK, 2 DEF, 4 MID, 2 FWD
+// MUST guarantee positional coverage: min 2 GK, 2 DEF, 4 MID, 2 FWD
 const generateDraftPool = (): DraftCard[] => {
   const gold = MOCK_PLAYER_POOL.filter((p) => p.base_value >= 4000);
   const silver = MOCK_PLAYER_POOL.filter((p) => p.base_value >= 2000 && p.base_value < 4000);
   const bronze = MOCK_PLAYER_POOL.filter((p) => p.base_value < 2000);
 
-  const pickN = (arr: PlayerReference[], n: number): PlayerReference[] => shuffle(arr).slice(0, n);
+  const pickFromTier = (tier: PlayerReference[], n: number, tierName: DraftCardTier): DraftCard[] =>
+    shuffle(tier).slice(0, n).map((p): DraftCard => ({ player_reference_id: p.id, player: p, tier: tierName }));
 
-  const pool: DraftCard[] = [
-    ...pickN(gold, 5).map((p): DraftCard => ({ player_reference_id: p.id, player: p, tier: 'GOLD' })),
-    ...pickN(silver, 5).map((p): DraftCard => ({ player_reference_id: p.id, player: p, tier: 'SILVER' })),
-    ...pickN(bronze, 5).map((p): DraftCard => ({ player_reference_id: p.id, player: p, tier: 'BRONZE' })),
+  // Build initial pool
+  let pool: DraftCard[] = [
+    ...pickFromTier(gold, 5, 'GOLD'),
+    ...pickFromTier(silver, 5, 'SILVER'),
+    ...pickFromTier(bronze, 5, 'BRONZE'),
   ];
+
+  // RG-N02: Validate positional coverage (2 GK, 2 DEF, 4 MID, 2 FWD)
+  const countPos = (pos: string) => pool.filter((c) => c.player.position === pos).length;
+  const allPlayers = shuffle([...MOCK_PLAYER_POOL]);
+
+  const ensureMinimum = (pos: PlayerPosition, min: number) => {
+    while (countPos(pos) < min && pool.length <= 15) {
+      const candidate = allPlayers.find(
+        (p) => p.position === pos && !pool.some((c) => c.player_reference_id === p.id)
+      );
+      if (!candidate) break;
+      // Replace a random player of the most over-represented position
+      const overPos = (['GK', 'DEF', 'MID', 'FWD'] as PlayerPosition[])
+        .filter((pp) => pp !== pos)
+        .sort((a, b) => countPos(b) - countPos(a))[0];
+      const replaceIdx = pool.findIndex((c) => c.player.position === overPos);
+      if (replaceIdx >= 0) {
+        const tier = pool[replaceIdx].tier;
+        pool[replaceIdx] = { player_reference_id: candidate.id, player: candidate, tier };
+      }
+    }
+  };
+
+  ensureMinimum('GK', 2);
+  ensureMinimum('DEF', 2);
+  ensureMinimum('MID', 4);
+  ensureMinimum('FWD', 2);
+
   return pool;
 };
 

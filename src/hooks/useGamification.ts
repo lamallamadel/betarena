@@ -4,7 +4,8 @@ import { db, APP_ID } from '../config/firebase';
 
 const MAX_DAILY_SHARES = 3;
 const SHARE_REWARD = 10;
-const XP_PER_LEVEL = 1000;
+// RG-E02: XP exponentielle: seuil = 100 × Level^1.5
+const getXpForLevel = (level: number): number => Math.floor(100 * Math.pow(level, 1.5));
 const BONUS_COOLDOWN = 10000; // 10 secondes pour le test (mets 86400000 pour 24h)
 
 export const useGamification = (userId: string | undefined, profile: any) => {
@@ -21,9 +22,27 @@ export const useGamification = (userId: string | undefined, profile: any) => {
   const timeSinceLast = profile ? now - (profile.lastDailyBonus || 0) : 0;
   const isBonusAvailable = profile ? timeSinceLast > BONUS_COOLDOWN : false;
 
-  // Calculs d'affichage
-  const getLevel = (xp: number) => Math.floor(xp / XP_PER_LEVEL) + 1;
-  const getProgress = (xp: number) => (xp % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
+  // Calculs d'affichage (RG-E02: courbe exponentielle)
+  const getLevel = (xp: number) => {
+    let level = 1;
+    let totalXpNeeded = 0;
+    while (totalXpNeeded + getXpForLevel(level) <= xp) {
+      totalXpNeeded += getXpForLevel(level);
+      level++;
+    }
+    return level;
+  };
+  const getProgress = (xp: number) => {
+    let level = 1;
+    let totalXpNeeded = 0;
+    while (totalXpNeeded + getXpForLevel(level) <= xp) {
+      totalXpNeeded += getXpForLevel(level);
+      level++;
+    }
+    const xpInCurrentLevel = xp - totalXpNeeded;
+    const xpForNextLevel = getXpForLevel(level);
+    return (xpInCurrentLevel / xpForNextLevel) * 100;
+  };
 
   // Action : Acheter
   const buyItem = async (cost: number, itemId: string) => {
@@ -57,9 +76,12 @@ export const useGamification = (userId: string | undefined, profile: any) => {
       throw new Error(`Patience ! Encore ${secondsLeft} secondes.`);
     }
 
+    // RG-E01: Bonus 200 coins si solde < 50 (mécanique comeback), sinon 100
+    const bonusAmount = (profile.coins || 0) < 50 ? 200 : 100;
+
     const userRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'data', 'profile');
     await updateDoc(userRef, {
-      coins: increment(100),
+      coins: increment(bonusAmount),
       xp: increment(50),
       lastDailyBonus: Date.now() // On enregistre l'heure du clic
     });

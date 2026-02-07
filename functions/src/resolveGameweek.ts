@@ -138,28 +138,53 @@ export const resolveGameweek = onRequest(async (req, res) => {
                 );
             }
 
-            // RG-M03: Auto-substitution
+            // RG-M03: Auto-substitution (position-compatible first, then any)
+            const usedBench = new Set<string>();
             for (const starter of starters) {
                 const sData = starter as any;
                 const sStats = playerStats[sData.card_id];
                 if (sStats && sStats.minutes_played === 0) {
-                    // Find first bench player with >0 minutes
+                    const starterPos = sData.card?.player?.position || "MID";
+
+                    // Priority 1: Same position bench player
+                    let replaced = false;
                     for (const benchPlayer of bench) {
                         const bData = benchPlayer as any;
+                        if (usedBench.has(bData.card_id)) continue;
+                        const benchPos = bData.card?.player?.position || "MID";
+                        if (benchPos !== starterPos) continue;
+
                         const bStats = getMockPlayerStats(bData.card?.player_reference_id || bData.card_id);
                         if (bStats.minutes_played > 0) {
-                            const bPoints = calculatePlayerPoints(
-                                bData.card?.player?.position || "MID", bStats
-                            );
+                            const bPoints = calculatePlayerPoints(benchPos, bStats);
                             playerPoints[bData.card_id] = bPoints;
                             playerPoints[sData.card_id] = 0;
-
-                            // Mark as subbed in
+                            usedBench.add(bData.card_id);
                             await lineupRef.collection("players").doc(bData.slot).update({
-                                is_subbed_in: true,
-                                points: bPoints,
+                                is_subbed_in: true, points: bPoints,
                             });
+                            replaced = true;
                             break;
+                        }
+                    }
+
+                    // Priority 2: Any position bench player
+                    if (!replaced) {
+                        for (const benchPlayer of bench) {
+                            const bData = benchPlayer as any;
+                            if (usedBench.has(bData.card_id)) continue;
+                            const bStats = getMockPlayerStats(bData.card?.player_reference_id || bData.card_id);
+                            if (bStats.minutes_played > 0) {
+                                const benchPos = bData.card?.player?.position || "MID";
+                                const bPoints = calculatePlayerPoints(benchPos, bStats);
+                                playerPoints[bData.card_id] = bPoints;
+                                playerPoints[sData.card_id] = 0;
+                                usedBench.add(bData.card_id);
+                                await lineupRef.collection("players").doc(bData.slot).update({
+                                    is_subbed_in: true, points: bPoints,
+                                });
+                                break;
+                            }
                         }
                     }
                 }

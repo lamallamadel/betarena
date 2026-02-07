@@ -344,7 +344,66 @@ export const resolveMatch = onRequest(async (req, res) => {
 });
 
 /**
- * Firestore trigger: Auto-resolve when match status changes to FINISHED
+ * RG-A06: Rembourse tous les paris PENDING d'un match annulé/reporté
+ */
+const refundMatchBets = async (matchId: string, reason: string): Promise<number> => {
+    let refunded = 0;
+
+    const usersSnapshot = await db
+        .collection("artifacts")
+        .doc(APP_ID)
+        .collection("users")
+        .get();
+
+    for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const predictionsRef = db
+            .collection("artifacts")
+            .doc(APP_ID)
+            .collection("users")
+            .doc(userId)
+            .collection("predictions");
+
+        const pendingBets = await predictionsRef
+            .where("matchId", "==", matchId)
+            .where("status", "==", "PENDING")
+            .get();
+
+        for (const betDoc of pendingBets.docs) {
+            const prediction = betDoc.data();
+
+            await db.runTransaction(async (t: admin.firestore.Transaction) => {
+                const userProfileRef = db
+                    .collection("artifacts")
+                    .doc(APP_ID)
+                    .collection("users")
+                    .doc(userId)
+                    .collection("data")
+                    .doc("profile");
+
+                const profileDoc = await t.get(userProfileRef);
+                const currentCoins = profileDoc.data()?.coins || 0;
+
+                t.update(betDoc.ref, {
+                    status: "VOID",
+                    resolvedAt: Date.now(),
+                    gain: prediction.amount,
+                    reason,
+                });
+
+                t.update(userProfileRef, { coins: currentCoins + prediction.amount });
+            });
+
+            refunded++;
+        }
+    }
+
+    return refunded;
+};
+
+/**
+ * Firestore trigger: Auto-resolve when match status changes to FINISHED,
+ * or refund all bets if CANCELLED/POSTPONED (RG-A06)
  */
 export const onMatchFinished = onDocumentUpdated(
     "matches/{matchId}",
@@ -366,6 +425,16 @@ export const onMatchFinished = onDocumentUpdated(
 
             logger.info(`Auto-resolving match ${event.params.matchId}`);
             await resolveMatchBets(matchResult);
+        }
+
+        // RG-A06: Remboursement batch si match annulé ou reporté
+        if (after.status === "CANCELLED" || after.status === "POSTPONED") {
+            logger.info(`Refunding bets for ${after.status} match ${event.params.matchId}`);
+            const refunded = await refundMatchBets(
+                event.params.matchId,
+                `Match ${after.status.toLowerCase()} — remboursement automatique`
+            );
+            logger.info(`Refunded ${refunded} bets for match ${event.params.matchId}`);
         }
     }
 );
