@@ -40,7 +40,7 @@ export { rewardShare } from "./social";
 export { buyMarketListing } from "./marketplace";
 
 // Export Sports API functions
-export { syncFixtures, syncLiveMatch, scheduledFixtureSync } from "./sportsapi";
+export { syncFixtures, syncLiveMatch, syncStandings, syncAllLive, scheduledFixtureSync } from "./sportsapi";
 
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
