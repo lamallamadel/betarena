@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const APP_ID = "betarena"; // TODO: Move to config
+const APP_ID = "botola-v1"; // Match frontend APP_ID
 
 // Types
 type PredictionType = "1N2" | "EXACT_SCORE" | "PENALTY_MISS";

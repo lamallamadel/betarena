@@ -12,7 +12,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const APP_ID = "betarena";
+const APP_ID = "botola-v1";
 
 // Reuse scoring rules from Module M
 const SCORING = {

@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const APP_ID = "betarena";
+const APP_ID = "botola-v1";
 
 // RG-M01: Scoring rules
 const SCORING = {

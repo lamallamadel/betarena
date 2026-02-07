@@ -33,6 +33,12 @@ export { resolveGameweek, onGameweekLive } from "./resolveGameweek";
 // Export Blitz (Module N) functions
 export { resolveBlitz } from "./resolveBlitz";
 
+// Export Social (Module Partage) functions
+export { rewardShare } from "./social";
+
+// Export Marketplace (Module L) functions
+export { buyMarketListing } from "./marketplace";
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
