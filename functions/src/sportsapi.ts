@@ -316,7 +316,7 @@ function getStandingsRef(leagueId: number) {
  * Sync fixtures for a specific date across supported leagues.
  * Also fetches pre-match odds.
  */
-export const syncFixtures = onCall(async (request) => {
+export const syncFixtures = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
     const { date, leagueIds } = request.data as { date: string; leagueIds?: number[] };
@@ -377,7 +377,7 @@ export const syncFixtures = onCall(async (request) => {
 /**
  * Sync live match details: updated score/status, events, and lineups.
  */
-export const syncLiveMatch = onCall(async (request) => {
+export const syncLiveMatch = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
     const { apiId } = request.data as { apiId: number };
@@ -435,7 +435,7 @@ export const syncLiveMatch = onCall(async (request) => {
 /**
  * Sync standings for supported leagues.
  */
-export const syncStandings = onCall(async (request) => {
+export const syncStandings = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
     const { leagueId } = request.data as { leagueId?: number };
@@ -481,7 +481,7 @@ export const syncStandings = onCall(async (request) => {
  * Sync all currently live matches (events + score updates).
  * Call periodically (every 1-2 minutes) during match days.
  */
-export const syncAllLive = onCall(async (request) => {
+export const syncAllLive = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
     const leagueIds = Object.keys(SUPPORTED_LEAGUES).join("-");
