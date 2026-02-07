@@ -87,7 +87,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, match, 
           <div className="relative mb-6 shrink-0 transform scale-95 origin-top">
             <div ref={cardRef} className={`w-[320px] aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl border relative flex flex-col ${getTemplateStyle()}`}>
               {/* Pattern Overlay */}
-              <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+              <div className="absolute inset-0 opacity-10 bg-[url('/textures/cubes.png')] mix-blend-overlay"></div>
 
               {/* Header */}
               <div className="p-6 flex justify-between items-start relative z-10">
