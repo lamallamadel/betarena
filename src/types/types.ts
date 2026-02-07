@@ -34,14 +34,28 @@ export interface UserProfile {
 }
 
 export interface Match {
-  odds: string;
   id: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeScore: number;
-  awayScore: number;
+  api_id?: number;
+  competition: string;
+  league_id?: number;
+  home: string;
+  away: string;
+  homeLogo: string;
+  awayLogo: string;
+  time: string;
+  kickoff_at: any; // Firestore Timestamp
   status: MatchStatus;
   minute: number;
+  score: {
+    h: number;
+    a: number;
+  };
+  odds?: {
+    h: number;
+    n: number;
+    a: number;
+  };
+  favorite?: boolean;
 }
 
 export interface Prediction {

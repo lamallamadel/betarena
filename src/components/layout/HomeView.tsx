@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff } from 'lucide-react';
-import { MOCK_DATES, MOCK_LEAGUES, MOCK_MATCHES } from '../../data/mockData';
+import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff, RefreshCcw } from 'lucide-react';
+import { MOCK_DATES, MOCK_LEAGUES } from '../../data/mockData';
 import { MatchCard } from '../match/MatchCard';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -8,6 +8,7 @@ import { FavoriteButton } from '../ui/FavoriteButton';
 import { GuestWallModal } from '../auth/GuestWallModal';
 import { SearchOverlay } from '../search/SearchOverlay';
 import type { RichUserProfile } from '../../types/types';
+import { useMatchFeed } from '../../hooks/useMatchFeed';
 
 interface HomeViewProps {
     user: RichUserProfile;
@@ -17,7 +18,14 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchClick, toggleNotifications }) => {
-    const [selectedDate, setSelectedDate] = useState(0);
+    const [selectedDate, setSelectedDate] = useState(0); // Index in MOCK_DATES
+
+    // Convert selected index to date string YYYY-MM-DD
+    const dateObj = new Date();
+    dateObj.setDate(dateObj.getDate() + selectedDate);
+    const dateStr = dateObj.toISOString().split('T')[0];
+
+    const { matches, loading } = useMatchFeed(dateStr);
 
     // No Spoiler Mode - persisté dans localStorage
     const [isSpoilerFree, setIsSpoilerFree] = useState(() => {
@@ -37,17 +45,15 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
     // Search Overlay state
     const [showSearch, setShowSearch] = useState(false);
 
-    // Grouper les matchs par ligue (comme dans Maquette.tsx)
-    const matchesByLeague = MOCK_MATCHES.reduce((acc: Record<string, any[]>, match) => {
-        // Filtre date simplifié
-        if (selectedDate === 0 && match.time === 'Demain') return acc;
+    // Grouper les matchs par ligue
+    const matchesByLeague = matches.reduce((acc: Record<string, any[]>, match) => {
         if (!acc[match.competition]) acc[match.competition] = [];
         acc[match.competition].push(match);
         return acc;
     }, {});
 
-    // Matchs favoris pour le carousel
-    const favoriteMatches = MOCK_MATCHES.filter(m => m.favorite);
+    // Matchs favoris pour le carousel (Exemple: Premier League ou IDs spécifiques)
+    const favoriteMatches = matches.filter(m => m.competition === 'Premier League' || m.competition === 'Champions League');
 
     return (
         <div className="flex flex-col h-full overflow-y-auto">
@@ -74,6 +80,25 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                             title={isSpoilerFree ? 'Afficher les scores' : 'Masquer les scores'}
                         >
                             {isSpoilerFree ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        {/* Refresh / Sync Button */}
+                        <button
+                            onClick={async () => {
+                                const { getFunctions, httpsCallable } = await import('firebase/functions');
+                                const functions = getFunctions();
+                                const syncFixturesFn = httpsCallable(functions, 'syncFixtures');
+                                try {
+                                    await syncFixturesFn({ date: dateStr });
+                                    alert('Synchronisation réussie !');
+                                } catch (e) {
+                                    console.error('Sync error', e);
+                                    alert('Erreur de synchronisation');
+                                }
+                            }}
+                            className="p-2.5 bg-slate-900 rounded-full border border-slate-800 text-slate-400 active:scale-95 transition-transform"
+                            title="Synchroniser les matchs"
+                        >
+                            <RefreshCcw size={18} />
                         </button>
                         {/* Search Button */}
                         <button onClick={() => setShowSearch(true)} className="relative p-2 text-slate-400 hover:text-white transition-colors">

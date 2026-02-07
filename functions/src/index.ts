@@ -39,6 +39,9 @@ export { rewardShare } from "./social";
 // Export Marketplace (Module L) functions
 export { buyMarketListing } from "./marketplace";
 
+// Export Sports API functions
+export { syncFixtures, syncLiveMatch, scheduledFixtureSync } from "./sportsapi";
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");

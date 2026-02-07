@@ -28,7 +28,7 @@ export const rewardShare = onCall(async (request) => {
     const userRef = db.collection("artifacts").doc(APP_ID).collection("users").doc(userId).collection("data").doc("profile");
 
     try {
-        const result = await db.runTransaction(async (t) => {
+        const result = await db.runTransaction(async (t: admin.firestore.Transaction) => {
             const docSnap = await t.get(userRef);
             if (!docSnap.exists()) {
                 throw new HttpsError("not-found", "User profile not found.");

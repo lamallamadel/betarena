@@ -118,7 +118,7 @@ export const resolveGameweek = onRequest(async (req, res) => {
 
             // Fetch lineup players
             const playersSnap = await lineupRef.collection("players").get();
-            const players = playersSnap.docs.map((d) => ({ slot: d.id, ...d.data() }));
+            const players = playersSnap.docs.map((d: admin.firestore.QueryDocumentSnapshot) => ({ slot: d.id, ...d.data() }));
 
             const starters = players.filter((p: any) => p.position_slot <= 11);
             const bench = players.filter((p: any) => p.position_slot > 11)
