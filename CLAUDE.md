@@ -35,8 +35,8 @@ betarena/
 │   ├── data/mockData.ts          # Mock match data, leagues, lineups for development
 │   ├── hooks/                    # Custom React hooks (business logic)
 │   │   ├── useBetting.ts         # Core betting logic — placeBet, resolution engine, lock rules
-│   │   ├── useMatch.ts           # Match data fetching
-│   │   ├── useMatchLive.ts       # Live match updates
+│   │   ├── useMatchLive.ts       # Live match updates (Real data from Firestore)
+│   │   ├── useMatchFeed.ts       # Match list fetching for Home view (Real data)
 │   │   ├── useMatchPolling.ts    # Auto-refresh polling (60s interval)
 │   │   ├── useChat.ts            # Chat room messaging
 │   │   ├── useGamification.ts    # XP, levels, shop purchases
@@ -222,7 +222,7 @@ type MatchStatus = 'PRE_MATCH' | 'SCHEDULED' | 'LIVE_1ST_HALF' | 'HALF_TIME' |
 3. **No React Router**: Navigation is manual state-driven, which doesn't support browser back/forward or deep links
 4. **Firebase API key is hardcoded** in `src/config/firebase.ts` — should use environment variables
 5. **Firestore rules are wide open**: Current rules allow all reads/writes until 2030 — needs proper security rules
-6. **Mock data dependency**: `src/data/mockData.ts` is used extensively; real API integration (API-Football/SportMonks) is not yet implemented
+6. **Mock data dependency**: Transitioning to real API integration (API-Football). (In Progress)
 7. **Inconsistent file naming**: Mix of PascalCase and camelCase component files
 8. **`any` types**: Heavy use of `any` throughout components (e.g., `selectedMatch`, match data, predictions)
 9. **No error boundaries**: No React error boundary components
