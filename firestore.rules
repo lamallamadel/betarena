@@ -20,6 +20,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Analytics - Champion Variance (read-only for authenticated users, write for system only)
+    match /artifacts/{appId}/analytics/champion_variance/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only backend/Cloud Functions can write
+    }
+
+    // Analytics - Bottom 50% Retention (read-only for authenticated users, write for system only)
+    match /artifacts/{appId}/analytics/bottom50_retention/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only backend/Cloud Functions can write
+    }
+
     // Temporary open access (TODO: Implement proper security rules)
     match /{document=**} {
       allow read, write: if

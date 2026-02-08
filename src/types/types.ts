@@ -275,3 +275,42 @@ export interface EnvironmentConfig {
   environment: Environment;
   flags: FeatureFlagsConfig;
 }
+
+// ============================================
+// Analytics System (Year 5 Features)
+// ============================================
+
+export interface ChampionVarianceData {
+  matchId: string;
+  timestamp: number;
+  totalBets: number;
+  uniqueUsers: number;
+  selections: {
+    selection: string;
+    count: number;
+    percentage: number;
+    totalStaked: number;
+  }[];
+  varianceScore: number;
+  concentrationIndex: number;
+}
+
+export interface Bottom50RetentionData {
+  date: string;
+  timestamp: number;
+  totalUsers: number;
+  bottom50Count: number;
+  activeBottom50: number;
+  retentionRate: number;
+  avgBetsPerUser: number;
+  avgCoinsSpent: number;
+}
+
+export interface UserActivitySnapshot {
+  userId: string;
+  rank: number;
+  isBottom50: boolean;
+  betsPlaced: number;
+  coinsSpent: number;
+  lastActiveAt: number;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { doc, runTransaction, updateDoc, increment } from 'firebase/firestore';
+import { doc, runTransaction, updateDoc, increment, setDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
+import type { Bottom50RetentionData, UserActivitySnapshot } from '../types/types';
 
 const MAX_DAILY_SHARES = 3;
 const SHARE_REWARD = 10;
@@ -112,5 +113,149 @@ export const useGamification = (userId: string | undefined, profile: any) => {
     });
   };
 
-  return { getLevel, getProgress, buyItem, equipItem, claimBonus, claimShareReward, isBonusAvailable };
+  // ============================================
+  // ANALYTICS: Bottom 50% Retention (Year 5)
+  // ============================================
+
+  /**
+   * Calcule et enregistre les métriques de rétention du bottom 50%
+   * Mesure l'engagement des utilisateurs les moins performants du classement
+   * Indicateur clé de santé de l'écosystème (éviter la churn des débutants)
+   */
+  const trackBottom50Retention = async (): Promise<void> => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const dayStart = new Date(today).getTime();
+      const dayEnd = dayStart + 86400000; // +24h
+
+      // 1. Récupérer le classement complet depuis la collection leaderboard
+      const leaderboardRef = collection(db, 'leaderboard');
+      const leaderboardQuery = query(leaderboardRef, orderBy('totalCoins', 'desc'));
+      const leaderboardSnapshot = await getDocs(leaderboardQuery);
+
+      const totalUsers = leaderboardSnapshot.size;
+      if (totalUsers === 0) return;
+
+      const bottom50Count = Math.ceil(totalUsers / 2);
+      const allUsers: Array<{ userId: string; rank: number; coins: number }> = [];
+
+      leaderboardSnapshot.docs.forEach((doc, index) => {
+        allUsers.push({
+          userId: doc.id,
+          rank: index + 1,
+          coins: doc.data().totalCoins || 0
+        });
+      });
+
+      // 2. Identifier les utilisateurs du bottom 50%
+      const bottom50Users = allUsers.slice(-bottom50Count);
+
+      // 3. Calculer l'activité du bottom 50% pour la journée
+      let activeBottom50 = 0;
+      let totalBetsPlaced = 0;
+      let totalCoinsSpent = 0;
+      const activitySnapshots: UserActivitySnapshot[] = [];
+
+      for (const user of bottom50Users) {
+        const predictionsRef = collection(db, 'artifacts', APP_ID, 'users', user.userId, 'predictions');
+        const predictionsSnapshot = await getDocs(predictionsRef);
+
+        let userBets = 0;
+        let userCoinsSpent = 0;
+        let lastActiveAt = 0;
+
+        predictionsSnapshot.forEach((predDoc) => {
+          const data = predDoc.data();
+          const timestamp = data.timestamp || 0;
+
+          // Compter uniquement l'activité de la journée
+          if (timestamp >= dayStart && timestamp < dayEnd) {
+            userBets++;
+            userCoinsSpent += data.amount || 0;
+            lastActiveAt = Math.max(lastActiveAt, timestamp);
+          }
+        });
+
+        if (userBets > 0) {
+          activeBottom50++;
+          totalBetsPlaced += userBets;
+          totalCoinsSpent += userCoinsSpent;
+        }
+
+        activitySnapshots.push({
+          userId: user.userId,
+          rank: user.rank,
+          isBottom50: true,
+          betsPlaced: userBets,
+          coinsSpent: userCoinsSpent,
+          lastActiveAt
+        });
+      }
+
+      // 4. Calculer les métriques agrégées
+      const retentionRate = bottom50Count > 0 ? (activeBottom50 / bottom50Count) * 100 : 0;
+      const avgBetsPerUser = activeBottom50 > 0 ? totalBetsPlaced / activeBottom50 : 0;
+      const avgCoinsSpent = activeBottom50 > 0 ? totalCoinsSpent / activeBottom50 : 0;
+
+      const retentionData: Bottom50RetentionData = {
+        date: today,
+        timestamp: Date.now(),
+        totalUsers,
+        bottom50Count,
+        activeBottom50,
+        retentionRate,
+        avgBetsPerUser,
+        avgCoinsSpent
+      };
+
+      // 5. Stockage dans Firestore
+      const analyticsRef = doc(
+        db,
+        'artifacts',
+        APP_ID,
+        'analytics',
+        'bottom50_retention',
+        'daily',
+        today
+      );
+      await setDoc(analyticsRef, retentionData);
+
+      // Stockage optionnel des snapshots détaillés pour analyse future
+      const snapshotsRef = doc(
+        db,
+        'artifacts',
+        APP_ID,
+        'analytics',
+        'bottom50_retention',
+        'snapshots',
+        today
+      );
+      await setDoc(snapshotsRef, {
+        date: today,
+        timestamp: Date.now(),
+        snapshots: activitySnapshots.filter(s => s.betsPlaced > 0) // Sauver seulement les actifs
+      });
+
+      console.log('[Analytics] Bottom 50% Retention tracked:', {
+        date: today,
+        retentionRate: retentionRate.toFixed(2) + '%',
+        activeBottom50,
+        bottom50Count
+      });
+    } catch (error) {
+      console.error('[Analytics] Error tracking bottom 50% retention:', error);
+    }
+  };
+
+  return { 
+    getLevel, 
+    getProgress, 
+    buyItem, 
+    equipItem, 
+    claimBonus, 
+    claimShareReward, 
+    isBonusAvailable,
+    // Analytics exports
+    trackBottom50Retention
+  };
 };

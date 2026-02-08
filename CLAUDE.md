@@ -34,15 +34,16 @@ betarena/
 │   ├── context/AuthContext.tsx    # Auth provider — anonymous Firebase auth + Firestore profile
 │   ├── data/mockData.ts          # Mock match data, leagues, lineups for development
 │   ├── hooks/                    # Custom React hooks (business logic)
-│   │   ├── useBetting.ts         # Core betting logic — placeBet, resolution engine, lock rules
+│   │   ├── useBetting.ts         # Core betting logic — placeBet, resolution engine, lock rules, analytics
 │   │   ├── useMatchLive.ts       # Live match updates (Real data from Firestore)
 │   │   ├── useMatchFeed.ts       # Match list fetching for Home view (Real data)
 │   │   ├── useMatchPolling.ts    # Auto-refresh polling (60s interval)
 │   │   ├── useChat.ts            # Chat room messaging
-│   │   ├── useGamification.ts    # XP, levels, shop purchases
+│   │   ├── useGamification.ts    # XP, levels, shop purchases, bottom 50% retention analytics
 │   │   ├── useFavorites.ts       # Team/match favorites
 │   │   ├── useSearch.ts          # Global search functionality
 │   │   ├── useSocialShare.ts     # Share story image generation
+│   │   ├── useAnalytics.ts       # Year 5 analytics — Champion Variance, Bottom 50% Retention
 │   │   └── useAdmin.ts           # Admin dashboard operations
 │   ├── components/
 │   │   ├── layout/
@@ -440,3 +441,97 @@ All shared types live in `src/types/types.ts`. Key interfaces:
 - `UserProfile`, `RichUserProfile` — user data (basic vs. enriched for UI)
 - `LeaderboardPlayer` — leaderboard entries
 - `CompetitionRules` — per-competition betting configuration
+- `ChampionVarianceData`, `Bottom50RetentionData`, `UserActivitySnapshot` — analytics data
+
+## Analytics System (Year 5 Features)
+
+The application includes an advanced analytics system designed to support future Year 5 features. This system tracks two key metrics:
+
+### Champion Variance
+
+**Purpose**: Measures betting diversity across users to detect "herding behavior" and optimize game balance.
+
+**Key Metrics**:
+- **Variance Score** (0-1): Shannon entropy — measures bet distribution diversity
+- **Concentration Index** (0-1): Herfindahl-Hirschman Index — measures market concentration
+- **Unique Users**: Number of distinct users betting
+- **Total Bets**: Total number of bets placed
+
+**Usage**:
+```typescript
+import { useAnalytics } from './hooks/useAnalytics';
+const { trackChampionVariance } = useAnalytics();
+await trackChampionVariance('match_123', '1N2');
+```
+
+**Data Path**: `artifacts/botola-v1/analytics/champion_variance/matches/{matchId}_{type}`
+
+### Bottom 50% Retention
+
+**Purpose**: Tracks daily engagement of lower-ranked users to identify churn risk early and measure economy health.
+
+**Key Metrics**:
+- **Retention Rate** (%): Percentage of bottom 50% active today
+- **Active Bottom 50**: Number of active users in bottom half
+- **Avg Bets Per User**: Average bets placed by active bottom 50% users
+- **Avg Coins Spent**: Average spending per active bottom 50% user
+
+**Usage**:
+```typescript
+import { useAnalytics } from './hooks/useAnalytics';
+const { trackBottom50Retention } = useAnalytics();
+await trackBottom50Retention(); // Tracks for today
+```
+
+**Data Path**: `artifacts/botola-v1/analytics/bottom50_retention/daily/{YYYY-MM-DD}`
+
+### Integration Points
+
+Analytics tracking is integrated into key hooks:
+
+1. **`useBetting.ts`**: Exports `trackChampionVariance` for match-level betting analysis
+2. **`useGamification.ts`**: Exports `trackBottom50Retention` for user engagement tracking
+3. **`useAnalytics.ts`**: Standalone hook with all analytics functions + batch processing
+
+### Automated Tracking (Recommended)
+
+For production, set up Cloud Functions to automate tracking:
+
+```typescript
+// Daily retention tracking (midnight UTC)
+export const trackDailyRetention = onSchedule('0 0 * * *', async () => {
+  const analytics = useAnalytics();
+  await analytics.trackBottom50Retention();
+});
+
+// Champion variance on match start
+export const trackVarianceOnMatchStart = onDocumentUpdated(
+  'matches/{matchId}',
+  async (event) => {
+    if (oldStatus === 'PRE_MATCH' && newStatus === 'LIVE') {
+      const analytics = useAnalytics();
+      await analytics.trackChampionVariance(event.params.matchId, '1N2');
+    }
+  }
+);
+```
+
+### Documentation
+
+See **`docs/ANALYTICS.md`** for complete documentation, including:
+- Detailed metric explanations
+- Mathematical formulas (Shannon entropy, HHI)
+- Performance considerations
+- Future feature ideas
+- Troubleshooting guide
+- Security rules
+
+### Files Added/Modified
+
+- `src/hooks/useAnalytics.ts`: Standalone analytics hook with all tracking functions
+- `src/hooks/useBetting.ts`: Added `trackChampionVariance` export
+- `src/hooks/useGamification.ts`: Added `trackBottom50Retention` export
+- `src/types/types.ts`: Added `ChampionVarianceData`, `Bottom50RetentionData`, `UserActivitySnapshot` types
+- `firestore.rules`: Added security rules for analytics collections (read-only from client)
+- `firestore.indexes.json`: Added composite indexes for predictions and analytics queries
+- `docs/ANALYTICS.md`: Complete technical documentation

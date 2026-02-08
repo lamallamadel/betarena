@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore';
+import { doc, runTransaction, collection, onSnapshot, setDoc, getDocs, query, where } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
-import type { MatchStatus, PredictionType } from "../types/types";
+import type { MatchStatus, PredictionType, ChampionVarianceData } from "../types/types";
 
 // RG-A03 & RG-B02 : Coûts et gains (Mode Forfait pour l'instant)
 const RULES = {
@@ -299,6 +299,121 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     return predictions[type] || null;
   };
 
+  // ============================================
+  // ANALYTICS: Champion Variance (Year 5)
+  // ============================================
+
+  /**
+   * Calcule et enregistre les métriques de variance de champion
+   * Champion Variance mesure la distribution des paris entre les utilisateurs
+   * Score élevé = paris diversifiés (sain), Score faible = concentration (risque)
+   */
+  const trackChampionVariance = async (
+    matchIdToTrack: string,
+    predictionType: PredictionType = '1N2'
+  ): Promise<void> => {
+    if (!matchIdToTrack) return;
+
+    try {
+      // Agrégation de tous les paris pour ce match/type
+      const allUsersRef = collection(db, 'artifacts', APP_ID, 'users');
+      const usersSnapshot = await getDocs(allUsersRef);
+
+      const betsBySelection: Record<string, { count: number; totalStaked: number; users: Set<string> }> = {};
+      let totalBets = 0;
+      const uniqueUsers = new Set<string>();
+
+      // Parcourir tous les utilisateurs et leurs prédictions
+      for (const userDoc of usersSnapshot.docs) {
+        const predictionsRef = collection(db, 'artifacts', APP_ID, 'users', userDoc.id, 'predictions');
+        const predQuery = query(
+          predictionsRef,
+          where('matchId', '==', matchIdToTrack),
+          where('type', '==', predictionType),
+          where('status', '==', 'PENDING')
+        );
+        const predSnapshot = await getDocs(predQuery);
+
+        predSnapshot.forEach((predDoc) => {
+          const data = predDoc.data();
+          const selection = data.selection as string;
+          const amount = data.amount || 0;
+
+          if (!betsBySelection[selection]) {
+            betsBySelection[selection] = { count: 0, totalStaked: 0, users: new Set() };
+          }
+
+          betsBySelection[selection].count++;
+          betsBySelection[selection].totalStaked += amount;
+          betsBySelection[selection].users.add(userDoc.id);
+          totalBets++;
+          uniqueUsers.add(userDoc.id);
+        });
+      }
+
+      if (totalBets === 0) return;
+
+      // Calcul des métriques
+      const selections = Object.entries(betsBySelection).map(([selection, data]) => ({
+        selection,
+        count: data.count,
+        percentage: (data.count / totalBets) * 100,
+        totalStaked: data.totalStaked
+      }));
+
+      // Variance Score: Utilise l'entropie de Shannon normalisée
+      // Score de 0 (tous les paris sur une option) à 1 (distribution parfaitement uniforme)
+      const numOptions = selections.length;
+      let entropy = 0;
+      selections.forEach((sel) => {
+        const p = sel.percentage / 100;
+        if (p > 0) {
+          entropy -= p * Math.log2(p);
+        }
+      });
+      const maxEntropy = numOptions > 1 ? Math.log2(numOptions) : 1;
+      const varianceScore = maxEntropy > 0 ? entropy / maxEntropy : 0;
+
+      // Concentration Index: Herfindahl-Hirschman Index (HHI)
+      // 0 = parfaitement diversifié, 1 = totalement concentré
+      const concentrationIndex = selections.reduce((sum, sel) => {
+        const marketShare = sel.percentage / 100;
+        return sum + marketShare * marketShare;
+      }, 0);
+
+      const analyticsData: ChampionVarianceData = {
+        matchId: matchIdToTrack,
+        timestamp: Date.now(),
+        totalBets,
+        uniqueUsers: uniqueUsers.size,
+        selections,
+        varianceScore,
+        concentrationIndex
+      };
+
+      // Stockage dans Firestore
+      const analyticsRef = doc(
+        db,
+        'artifacts',
+        APP_ID,
+        'analytics',
+        'champion_variance',
+        'matches',
+        `${matchIdToTrack}_${predictionType}`
+      );
+      await setDoc(analyticsRef, analyticsData);
+
+      console.log('[Analytics] Champion Variance tracked:', {
+        matchId: matchIdToTrack,
+        type: predictionType,
+        varianceScore: varianceScore.toFixed(3),
+        concentrationIndex: concentrationIndex.toFixed(3)
+      });
+    } catch (error) {
+      console.error('[Analytics] Error tracking champion variance:', error);
+    }
+  };
+
   return {
     predictions,
     history,
@@ -312,6 +427,8 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     determineWinner,
     calculateGain,
     resolveBet,
-    estimatePariMutuelGain
+    estimatePariMutuelGain,
+    // Analytics exports
+    trackChampionVariance
   };
 };
