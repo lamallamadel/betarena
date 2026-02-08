@@ -1,5 +1,5 @@
 import React from 'react';
-import type { MatchEvent } from '../../hooks/useMatchLive';
+import type { MatchEvent } from '../../features/match/hooks/useMatchLive';
 import { RefreshCcw } from 'lucide-react'; // Mock icons
 
 interface TimelineEventProps {

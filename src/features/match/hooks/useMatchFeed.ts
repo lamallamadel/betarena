@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db, APP_ID } from '../config/firebase';
-import type { Match } from '../types/types';
+import { db, APP_ID } from '../../../config/firebase';
+import type { Match } from '../../../types/types';
 
 export const useMatchFeed = (dateStr: string) => {
     const [matches, setMatches] = useState<Match[]>([]);

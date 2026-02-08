@@ -1,11 +1,12 @@
 // src/types.ts
 
-export type MatchStatus = 'PRE_MATCH' | 'LIVE_1ST_HALF' | 'HALF_TIME' | 'LIVE_2ND_HALF' | 'FINISHED' | 'SCHEDULED' | 'LIVE' | 'CANCELLED' | 'POSTPONED';
+// Re-export Match-specific types from feature module
+export type { Match, MatchStatus, MatchEvent, MatchEventType } from '../features/match/types';
+
 export type PredictionType = '1N2' | 'EXACT_SCORE' | 'PENALTY_MISS';
 export type PredictionStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 export type CalculationMode = 'ODDS_MULTIPLIER' | 'FIXED';
 export type MessageType = 'TEXT' | 'IMAGE' | 'GIF';
-export type MatchEventType = 'GOAL' | 'CARD_YELLOW' | 'CARD_RED' | 'CORNER' | 'SUBSTITUTION' | 'VAR' | 'WHISTLE';
 
 export interface UserProfile {
   uid: string;
@@ -31,51 +32,6 @@ export interface UserProfile {
   referralCode?: string;
   referredBy?: string;
   lastDailyBonus?: number;
-}
-
-export interface Match {
-  id: string;
-  api_id?: number;
-  competition: string;
-  league_id?: number;
-  league_logo?: string;
-  league_round?: string;
-  home: string;
-  away: string;
-  home_id?: number;
-  away_id?: number;
-  homeLogo: string;
-  awayLogo: string;
-  time: string;
-  kickoff_at: any; // Firestore Timestamp
-  status: MatchStatus;
-  minute: number;
-  score: {
-    h: number;
-    a: number;
-  };
-  odds?: {
-    h: number;
-    n: number;
-    a: number;
-  };
-  favorite?: boolean;
-  lineups?: {
-    confirmed: boolean;
-    home: {
-      formation: string;
-      starters: Array<{ name: string; num: number; pos?: string; x: number; y: number }>;
-      bench: string[];
-    };
-    away: {
-      formation: string;
-      starters: Array<{ name: string; num: number; pos?: string; x: number; y: number }>;
-      bench: string[];
-    };
-  };
-  referee?: string;
-  hadPenaltyShootout?: boolean;
-  penaltyScore?: { h: number; a: number } | null;
 }
 
 export interface Prediction {

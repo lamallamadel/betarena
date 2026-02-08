@@ -7,7 +7,7 @@ import { PredictionTrends } from './PredictionTrends';
 import { ChatRoom } from '../social/chatRoom';
 import { TeamLogo } from '../ui/TeamLogo';
 import { useChat } from '../../hooks/useChat';
-import { useMatchLive } from '../../hooks/useMatchLive';
+import { useMatchLive } from '../../features/match/hooks/useMatchLive';
 import { TimelineEvent } from './TimelineEvent';
 import { MatchSimulator } from '../../utils/matchSimulator';
 import { ShareModal } from '../social/ShareModal';

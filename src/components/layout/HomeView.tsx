@@ -9,7 +9,7 @@ import { FavoriteButton } from '../ui/FavoriteButton';
 import { GuestWallModal } from '../auth/GuestWallModal';
 import { SearchOverlay } from '../search/SearchOverlay';
 import type { RichUserProfile } from '../../types/types';
-import { useMatchFeed } from '../../hooks/useMatchFeed';
+import { useMatchFeed } from '../../features/match/hooks/useMatchFeed';
 
 const DAY_LABELS_FR = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 
