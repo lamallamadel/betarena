@@ -17,7 +17,7 @@ const API_KEY = process.env.SPORTS_API_KEY || "";
 
 // Supported leagues: Botola Pro 1, Ligue 1, Premier League, La Liga, Serie A
 const SUPPORTED_LEAGUES: Record<number, string> = {
-    200: "Botola Pro",
+    115: "Botola Pro",
     61: "Ligue 1",
     39: "Premier League",
     140: "La Liga",
@@ -326,11 +326,26 @@ export const syncFixtures = onCall(async (request) => {
     let totalCount = 0;
 
     for (const leagueId of leagues) {
-        const fixtures = await fetchFromApi(
+        // Try CURRENT_SEASON (2025) first
+        let fixtures = await fetchFromApi(
             `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON}`
         );
 
-        if (!fixtures || fixtures.length === 0) continue;
+        // Fallback: If no results, try previous season (2024)
+        // This handles cases where the API considers the current date part of the previous season
+        if (!fixtures || fixtures.length === 0) {
+            logger.info(`No fixtures found for league ${leagueId} in season ${CURRENT_SEASON}. Trying ${CURRENT_SEASON - 1}...`);
+            fixtures = await fetchFromApi(
+                `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON - 1}`
+            );
+        }
+
+        if (!fixtures || fixtures.length === 0) {
+            logger.info(`No fixtures found for league ${leagueId} on ${date} (tried seasons ${CURRENT_SEASON} and ${CURRENT_SEASON - 1}).`);
+            continue;
+        }
+
+        logger.info(`Found ${fixtures.length} fixtures for league ${leagueId} on ${date}.`);
 
         const batch = db.batch();
         const fixtureIds: number[] = [];
@@ -530,9 +545,17 @@ export const scheduledFixtureSync = onSchedule(
         for (const date of [today, tomorrow]) {
             for (const leagueId of leagues) {
                 try {
-                    const fixtures = await fetchFromApi(
+                    // Try CURRENT_SEASON first
+                    let fixtures = await fetchFromApi(
                         `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON}`
                     ) as ApiFixture[] | null;
+
+                    // Fallback to previous season
+                    if (!fixtures || fixtures.length === 0) {
+                        fixtures = await fetchFromApi(
+                            `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON - 1}`
+                        ) as ApiFixture[] | null;
+                    }
 
                     if (fixtures && fixtures.length > 0) {
                         const batch = db.batch();

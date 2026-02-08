@@ -1,7 +1,6 @@
+import { useState } from 'react';
 import { ChevronLeft, Settings, ShieldCheck, Activity, TrendingUp, Target, Trophy, Gift, Copy } from 'lucide-react';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import { db, auth, APP_ID } from '../../config/firebase';
+import { SettingsModal } from './SettingsModal';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
 
@@ -10,34 +9,30 @@ import type { RichUserProfile } from '../../types/types';
 interface ProfileViewProps {
     user: RichUserProfile;
     onNavigate: (view: 'LIVE' | 'PREDICT' | 'SOCIAL' | 'SHOP' | 'RANK' | 'PROFILE' | 'HOME') => void;
+    isDebugMode?: boolean;
+    onToggleDebug?: () => void;
 }
 
-
-// ... imports
-
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onNavigate }) => {
-
-    const handleDeleteProfile = async () => {
-        if (window.confirm("⚠️ Supprimer le profil et recommencer l'Onboarding ?")) {
-            try {
-                const userRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'data', 'profile');
-                await deleteDoc(userRef);
-                await signOut(auth);
-                window.location.reload();
-            } catch (e) {
-                console.error("Erreur lors de la suppression du profil:", e);
-            }
-        }
-    };
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, onNavigate, isDebugMode = false, onToggleDebug = () => {} }) => {
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 animate-slide-up overflow-y-auto no-scrollbar pb-24">
+        <div className="flex flex-col h-full bg-slate-950 animate-slide-up overflow-y-auto no-scrollbar pb-24 relative">
+            
+            <SettingsModal 
+                isOpen={isSettingsOpen} 
+                onClose={() => setIsSettingsOpen(false)}
+                userUid={user.uid}
+                isDebugMode={isDebugMode}
+                onToggleDebug={onToggleDebug}
+            />
+
             {/* Header Profil Premium */}
             <div className="p-6 pt-12 bg-gradient-to-b from-emerald-500/10 via-slate-950 to-slate-950 border-b border-slate-900 flex flex-col items-center">
                 <div className="flex justify-between w-full mb-8">
                     <button onClick={() => onNavigate('HOME')} className="p-2.5 bg-slate-900/50 rounded-full border border-slate-800"><ChevronLeft size={20} /></button>
                     <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Profil Joueur</h2>
-                    <button onClick={handleDeleteProfile} className="p-2.5 bg-slate-900/50 rounded-full border border-slate-800 text-red-500"><Settings size={20} /></button>
+                    <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-slate-900/50 rounded-full border border-slate-800 text-slate-400 hover:text-white transition-colors"><Settings size={20} /></button>
                 </div>
 
                 <div className="relative mb-6">

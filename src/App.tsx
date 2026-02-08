@@ -38,8 +38,7 @@ export default function App() {
     const [toastMessage, setToastMessage] = useState('');
     const [showToast, setShowToast] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
-    const [betAmount, setBetAmount] = useState(100);
-    const [selectedOdd, setSelectedOdd] = useState<any>(null);
+    const [isDebugMode, setIsDebugMode] = useState(false);
 
     // Business Hooks
     // const { } = useMatch(); // match unused for now
@@ -151,7 +150,14 @@ export default function App() {
                     )}
                     {currentView === 'SOCIAL' && <SocialView />}
                     {currentView === 'LEADERBOARD' && <LeaderboardView user={user} onNavigate={handleNavigate} />}
-                    {currentView === 'PROFILE' && <ProfileView user={user} onNavigate={handleNavigate} />}
+                    {currentView === 'PROFILE' && (
+                        <ProfileView 
+                            user={user} 
+                            onNavigate={handleNavigate} 
+                            isDebugMode={isDebugMode}
+                            onToggleDebug={() => setIsDebugMode(!isDebugMode)}
+                        />
+                    )}
                     {currentView === 'SHOP' && <ShopView user={user} onNavigate={handleNavigate} onBuyItem={handleBuyItem} onEquipItem={(type, asset) => equipItem(type, asset)} />}
                     {currentView === 'MARKETPLACE' && <MarketplaceView user={user} onNavigate={handleNavigate} />}
                     {currentView === 'INVENTORY' && <InventoryView user={user} onNavigate={handleNavigate} />}
@@ -162,6 +168,7 @@ export default function App() {
                             match={selectedMatch}
                             user={user}
                             onNavigate={handleNavigate}
+                            isDebugMode={isDebugMode}
                             onPlaceBet={(type, selection, amount, odd) => {
                                 handlePlaceBet(type, selection, amount);
                                 setSelectedOdd(odd);

@@ -4,11 +4,11 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "serve": "npm run build && firebase emulators:start --only functions",
-    "shell": "npm run build && firebase functions:shell",
+    "serve": "npm run build && firebase emulators:start --only functions --project crossteamz",
+    "shell": "npm run build && firebase functions:shell  --project crossteamz",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions --project crossteamz",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log  --project crossteamz"
   },
   "name": "functions",
   "engines": {
