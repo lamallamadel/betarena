@@ -78,7 +78,7 @@ export const resolveBlitz = onRequest(async (req, res) => {
             .collection("blitz_tournaments").doc(tournamentId);
 
         const tournDoc = await tournRef.get();
-        if (!tournDoc.exists() || tournDoc.data()?.status !== "LIVE") {
+        if (!tournDoc.exists || tournDoc.data()?.status !== "LIVE") {
             res.status(400).json({ error: "Tournament not in LIVE status" });
             return;
         }
@@ -105,7 +105,7 @@ export const resolveBlitz = onRequest(async (req, res) => {
                 .collection("blitz_entries").doc(tournamentId);
 
             const entryDoc = await entryRef.get();
-            if (!entryDoc.exists()) continue;
+            if (!entryDoc.exists) continue;
 
             const entry = entryDoc.data()!;
             if (!entry.selected_lineup || entry.selected_lineup.length === 0) continue;
