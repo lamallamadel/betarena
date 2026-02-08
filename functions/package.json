@@ -7,8 +7,9 @@
     "serve": "npm run build && firebase emulators:start --only functions --project crossteamz",
     "shell": "npm run build && firebase functions:shell  --project crossteamz",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions --project crossteamz",
-    "logs": "firebase functions:log  --project crossteamz"
+    "deploy": "node ../scripts/validate-env.js --functions && firebase deploy --only functions --project crossteamz",
+    "logs": "firebase functions:log  --project crossteamz",
+    "validate:env": "node ../scripts/validate-env.js --functions"
   },
   "name": "functions",
   "engines": {
@@ -16,7 +17,8 @@
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",
-    "firebase-functions": "^7.0.0"
+    "firebase-functions": "^7.0.0",
+    "funkora": "file:.."
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",

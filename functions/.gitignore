@@ -2,9 +2,18 @@
 lib/**/*.js
 lib/**/*.js.map
 
-# TypeScript v1 declaration files
-typings/
+# TypeScript cache
+*.tsbuildinfo
 
-# Node.js dependency directory
+# Node.js dependencies
 node_modules/
-*.local
+
+# Environment variables (contains sensitive API keys)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Firebase config
+.runtimeconfig.json

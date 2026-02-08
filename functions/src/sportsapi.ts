@@ -10,10 +10,24 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const APP_ID = "botola-v1";
 
+// Runtime validation of API key
+function validateApiKey(): string {
+  const apiKey = process.env.SPORTS_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing required environment variable: SPORTS_API_KEY. " +
+      "For local development, set it in functions/.env file. " +
+      "For production, use: firebase functions:config:set sports.api_key=YOUR_KEY " +
+      "or Firebase Secrets Manager: firebase functions:secrets:set SPORTS_API_KEY"
+    );
+  }
+  return apiKey;
+}
+
 // API Configuration
 // Reference: https://www.api-football.com/documentation-v3
 const API_BASE_URL = "https://v3.football.api-sports.io";
-const API_KEY = process.env.SPORTS_API_KEY || "";
+const API_KEY = validateApiKey();
 
 // Supported leagues: Botola Pro 1, Ligue 1, Premier League, La Liga, Serie A
 const SUPPORTED_LEAGUES: Record<number, string> = {
@@ -154,11 +168,6 @@ function gridToCoordinates(grid: string | null, formation: string): { x: number;
 // ============================================
 
 async function fetchFromApi(endpoint: string): Promise<any[] | null> {
-    if (!API_KEY) {
-        logger.warn("SPORTS_API_KEY not configured. Set via: firebase functions:secrets:set SPORTS_API_KEY");
-        return null;
-    }
-
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             headers: {

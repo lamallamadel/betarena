@@ -215,12 +215,60 @@ type MatchStatus = 'PRE_MATCH' | 'SCHEDULED' | 'LIVE_1ST_HALF' | 'HALF_TIME' |
 - Variable/function names are in **English**
 - Spec document (`docs/specs.draft-v1.md`) is in **French**
 
+## Environment Variables Setup
+
+### Frontend Configuration
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your Firebase project credentials from Firebase Console > Project Settings > General > Your apps:
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - `VITE_FIREBASE_PROJECT_ID`
+   - `VITE_FIREBASE_STORAGE_BUCKET`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   - `VITE_FIREBASE_APP_ID`
+   - `VITE_FIREBASE_MEASUREMENT_ID`
+
+3. **Runtime validation**: `src/config/firebase.ts` validates all variables on startup and throws descriptive errors if any are missing.
+
+### Cloud Functions Configuration
+
+1. Copy `functions/.env.example` to `functions/.env`:
+   ```bash
+   cp functions/.env.example functions/.env
+   ```
+
+2. Add your API-Football key:
+   - Get a free API key from https://dashboard.api-football.com/
+   - Set `SPORTS_API_KEY` in `functions/.env`
+   - Free tier: 100 requests/day
+
+3. **Runtime validation**: `functions/src/sportsapi.ts` validates the API key on first use and throws an error with setup instructions if missing.
+
+### Deployment
+
+For production Firebase Functions deployment, set environment variables using:
+
+```bash
+# Option 1: Firebase Secrets Manager (recommended)
+firebase functions:secrets:set SPORTS_API_KEY
+
+# Option 2: Firebase config
+firebase functions:config:set sports.api_key=YOUR_KEY
+```
+
+**IMPORTANT**: Never commit `.env` files with real credentials to git. Both `.env` files are already in `.gitignore`.
+
 ## Known Issues & Technical Debt
 
 1. **APP_ID consistency**: Standardized on `"botola-v1"` across frontend and Cloud Functions. (Resolved)
-2. **No test suite**: No unit tests, integration tests, or test configuration exists
-3. **No React Router**: Navigation is manual state-driven, which doesn't support browser back/forward or deep links
-4. **Firebase API key is hardcoded** in `src/config/firebase.ts` — should use environment variables
+2. **Environment variables**: Migrated to .env files with runtime validation. (Resolved)
+3. **No test suite**: No unit tests, integration tests, or test configuration exists
+4. **No React Router**: Navigation is manual state-driven, which doesn't support browser back/forward or deep links
 5. **Firestore rules are wide open**: Current rules allow all reads/writes until 2030 — needs proper security rules
 6. **Mock data dependency**: Transitioning to real API integration (API-Football). (In Progress)
 7. **Inconsistent file naming**: Mix of PascalCase and camelCase component files
