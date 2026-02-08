@@ -25,8 +25,7 @@ export const AdminApp: React.FC = () => {
         logs,
         loading,
         error,
-        overrideMatch,
-        refreshMatches
+        overrideMatch
     } = useAdmin(adminUser);
 
     const handleOverrideClick = (matchId: string) => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, X, Crown } from 'lucide-react';
-import type { Formation, LineupPlayer, Card, PlayerPosition } from '../../types/types';
+import type { Formation, LineupPlayer, PlayerPosition } from '../../types/types';
 import { VALID_FORMATIONS } from '../../types/types';
 
 interface TeamEditorProps {

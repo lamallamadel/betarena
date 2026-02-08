@@ -85,8 +85,6 @@ export const DraftScreen: React.FC<DraftScreenProps> = ({ entry, onSubmit, onClo
       {/* Formation slots */}
       <div className="shrink-0 flex justify-center gap-2 px-4 py-3 border-b border-slate-800/50">
         {(['GK', 'DEF', 'MID', 'MID', 'FWD'] as PlayerPosition[]).map((pos, i) => {
-          const matchingSelected = selectedCards.filter((c) => c.player.position === pos);
-          const filled = i < matchingSelected.length + (pos === 'MID' && i === 3 ? (posCounts.MID >= 2 ? 0 : -1) : 0);
           // Simplified: count slots filled per position
           const slotFilled = (() => {
             if (pos === 'GK') return posCounts.GK > 0;

@@ -45,7 +45,7 @@ export const BettingForm: React.FC<BettingFormProps> = ({
         {activeTab === '1N2' && (
           <div className="grid grid-cols-3 gap-3">
             {['1', 'N', '2'].map((choice) => {
-              const label = choice === '1' ? match.homeTeam : choice === 'N' ? 'Nul' : match.awayTeam;
+              const label = choice === '1' ? match.home : choice === 'N' ? 'Nul' : match.away;
               const isSelected = currentPrediction?.selection === choice;
               
               return (

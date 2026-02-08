@@ -168,7 +168,6 @@ export default function App() {
                                 setBetAmount(amount);
                                 setShowShareModal(true);
                             }}
-                            onShare={() => setShowShareModal(true)}
                             is1N2Locked={is1N2Locked()}
                             isScoreLocked={isScoreLocked()}
                             existingBet1N2={getExistingBet('1N2')}

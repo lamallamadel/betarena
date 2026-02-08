@@ -205,8 +205,6 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
         }
 
         try {
-            const userRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'data');
-
             // In production: Use transactions to safely update balance
             // For now, just log the action
             await logAction('USER_CREDIT', userId, {

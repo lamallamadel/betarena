@@ -18,7 +18,6 @@ interface MatchCenterViewProps {
     user: RichUserProfile;
     onNavigate: (view: string) => void;
     onPlaceBet: (type: '1N2' | 'EXACT_SCORE', selection: any, amount: number, odd?: { label: string, val: number } | null) => void;
-    onShare: () => void;
     // SFD RG-A01/A02: Lock states
     is1N2Locked?: boolean;
     isScoreLocked?: boolean;
@@ -37,7 +36,7 @@ interface MatchCenterViewProps {
 }
 
 export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
-    match, user, onNavigate, onPlaceBet, onShare,
+    match, user, onNavigate, onPlaceBet,
     is1N2Locked = false, isScoreLocked = false,
     existingBet1N2, existingBetScore,
     isPariMutuel = false, poolStats

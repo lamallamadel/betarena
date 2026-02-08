@@ -30,24 +30,24 @@ export const MatchHeader: React.FC<MatchHeaderProps> = ({ match, goalAnimation }
         {/* Home Team */}
         <div className={`flex-1 flex flex-col items-center transition-transform ${goalAnimation === 'HOME' ? 'scale-110' : ''}`}>
           <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center font-black text-slate-900 border-2 border-indigo-500 text-lg mb-1 shadow-lg">
-            {match.homeTeam[0]}
+            {match.home[0]}
           </div>
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">{match.homeTeam}</span>
+          <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">{match.home}</span>
         </div>
 
         {/* Score */}
         <div className="px-4">
           <div className={`text-4xl font-black font-mono tracking-tighter transition-colors duration-300 ${goalAnimation ? 'text-yellow-400' : 'text-white'}`}>
-            {match.status === 'PRE_MATCH' ? 'VS' : `${match.homeScore}-${match.awayScore}`}
+            {match.status === 'PRE_MATCH' ? 'VS' : `${match.score.h}-${match.score.a}`}
           </div>
         </div>
 
         {/* Away Team */}
         <div className={`flex-1 flex flex-col items-center transition-transform ${goalAnimation === 'AWAY' ? 'scale-110' : ''}`}>
           <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center font-black text-slate-900 border-2 border-sky-500 text-lg mb-1 shadow-lg">
-            {match.awayTeam[0]}
+            {match.away[0]}
           </div>
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">{match.awayTeam}</span>
+          <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">{match.away}</span>
         </div>
       </div>
     </div>

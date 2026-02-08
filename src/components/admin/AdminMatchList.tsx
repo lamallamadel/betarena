@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Search, Filter, MoreVertical, AlertTriangle, Lock,
+    Search, Lock,
     CheckCircle, Clock, Edit3, Eye
 } from 'lucide-react';
 
@@ -70,7 +70,7 @@ interface AdminMatchListProps {
     loading?: boolean;
 }
 
-export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick, matches: propsMatches, loading = false }) => {
+export const AdminMatchList: React.FC<AdminMatchListProps> = ({ onOverrideClick, matches: propsMatches }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
