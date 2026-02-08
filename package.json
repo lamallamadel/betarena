@@ -1,7 +1,7 @@
 {
-  "name": "betarena-app",
+  "name": "funkora",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,7 @@
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@tailwindcss/vite": "^4.1.18",
-    "firebase": "^12.8.0",
+    "firebase": "^12.9.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
