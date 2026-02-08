@@ -30,7 +30,7 @@ export const rewardShare = onCall(async (request) => {
     try {
         const result = await db.runTransaction(async (t: admin.firestore.Transaction) => {
             const docSnap = await t.get(userRef);
-            if (!docSnap.exists()) {
+            if (!docSnap.exists) {
                 throw new HttpsError("not-found", "User profile not found.");
             }
 

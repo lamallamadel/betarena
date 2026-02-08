@@ -92,7 +92,7 @@ export const resolveGameweek = onRequest(async (req, res) => {
             .collection("gameweeks").doc(gameweekId);
 
         const gwDoc = await gwRef.get();
-        if (!gwDoc.exists() || gwDoc.data()?.status !== "LIVE") {
+        if (!gwDoc.exists || gwDoc.data()?.status !== "LIVE") {
             res.status(400).json({ error: "Gameweek not in LIVE status" });
             return;
         }
@@ -111,7 +111,7 @@ export const resolveGameweek = onRequest(async (req, res) => {
                 .collection("lineups").doc(gameweekId);
 
             const lineupDoc = await lineupRef.get();
-            if (!lineupDoc.exists()) continue;
+            if (!lineupDoc.exists) continue;
 
             const lineup = lineupDoc.data()!;
             if (lineup.status !== "LOCKED") continue;
@@ -266,7 +266,7 @@ export const onGameweekLive = onDocumentUpdated(
                 .collection("lineups").doc(gameweekId);
 
             const lineupDoc = await lineupRef.get();
-            if (lineupDoc.exists() && lineupDoc.data()?.status === "SAVED") {
+            if (lineupDoc.exists && lineupDoc.data()?.status === "SAVED") {
                 await lineupRef.update({ status: "LOCKED" });
             }
         }

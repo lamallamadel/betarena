@@ -32,7 +32,7 @@ export const buyMarketListing = onCall(async (request) => {
         const result = await db.runTransaction(async (t: admin.firestore.Transaction) => {
             // 1. Get Listing
             const listingSnap = await t.get(listingRef);
-            if (!listingSnap.exists()) {
+            if (!listingSnap.exists) {
                 throw new HttpsError("not-found", "Listing not found.");
             }
 
@@ -51,7 +51,7 @@ export const buyMarketListing = onCall(async (request) => {
 
             // 2. Get Buyer balance
             const buyerSnap = await t.get(buyerRef);
-            if (!buyerSnap.exists()) {
+            if (!buyerSnap.exists) {
                 throw new HttpsError("not-found", "Buyer profile not found.");
             }
 
@@ -86,7 +86,7 @@ export const buyMarketListing = onCall(async (request) => {
 
             // Transfer Card: Delete from seller, set to buyer
             const cardSnap = await t.get(cardRef);
-            const cardData = cardSnap.exists() ? cardSnap.data()! : listing.card;
+            const cardData = cardSnap.exists ? cardSnap.data()! : listing.card;
 
             t.delete(cardRef);
             t.set(buyerCardRef, {
