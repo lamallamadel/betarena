@@ -12,9 +12,10 @@ import { TimelineEvent } from './TimelineEvent';
 import { MatchSimulator } from '../../../utils/matchSimulator';
 import { ShareModal } from '../../../components/social/ShareModal';
 import type { RichUserProfile } from '../../../types/types';
+import type { Match } from '../types';
 
 interface MatchCenterViewProps {
-    match: any; // Ideally typed with Match type but simplified for migration
+    match: Match; 
     user: RichUserProfile;
     onNavigate: (view: string) => void;
     onPlaceBet: (type: '1N2' | 'EXACT_SCORE', selection: any, amount: number, odd?: { label: string, val: number } | null) => void;
@@ -60,9 +61,9 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     const { liveMatch, events } = useMatchLive(matchIdStr, match);
     // Use live data if available, else static props
     const currentMatch = liveMatch || match;
-    const currentHomeScore = currentMatch.score?.h ?? currentMatch.homeScore ?? 0;
-    const currentAwayScore = currentMatch.score?.a ?? currentMatch.awayScore ?? 0;
-    const currentMinute = currentMatch.minute ?? match.minute ?? 0;
+    const currentHomeScore = currentMatch.score?.h ?? 0;
+    const currentAwayScore = currentMatch.score?.a ?? 0;
+    const currentMinute = currentMatch.minute ?? 0;
 
     // GOAL ANIMATION LOGIC
     const [showGoalOverlay, setShowGoalOverlay] = useState<{ team: string, player: string } | null>(null);
@@ -323,7 +324,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 {matchTab === 'pronos' && (
                     <div className="animate-slide-up space-y-6">
                         {/* Tendance Globale (RG-06) */}
-                        <PredictionTrends matchId={match.id} />
+                        <PredictionTrends matchId={String(match.id)} />
 
                         {/* Tabs 1N2 vs Score Exact */}
                         <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800">
@@ -386,9 +387,9 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                                     )}
                                     <div className="grid grid-cols-3 gap-2 mb-4">
                                         {[
-                                            { l: '1', v: match.odds?.h, label: match.home },
-                                            { l: 'N', v: match.odds?.n, label: 'Nul' },
-                                            { l: '2', v: match.odds?.a, label: match.away }
+                                            { l: '1', v: match.odds?.h || 0, label: match.home },
+                                            { l: 'N', v: match.odds?.n || 0, label: 'Nul' },
+                                            { l: '2', v: match.odds?.a || 0, label: match.away }
                                         ].map((o, i) => (
                                             <button
                                                 key={i}

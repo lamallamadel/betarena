@@ -39,6 +39,8 @@ export default function App() {
     const [showToast, setShowToast] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [isDebugMode, setIsDebugMode] = useState(false);
+    const [selectedOdd, setSelectedOdd] = useState<{ label: string, val: number } | null>(null);
+    const [betAmount, setBetAmount] = useState(100);
 
     // Business Hooks
     // const { } = useMatch(); // match unused for now
@@ -168,10 +170,9 @@ export default function App() {
                             match={selectedMatch}
                             user={user}
                             onNavigate={handleNavigate}
-                            isDebugMode={isDebugMode}
                             onPlaceBet={(type, selection, amount, odd) => {
                                 handlePlaceBet(type, selection, amount);
-                                setSelectedOdd(odd);
+                                if (odd) setSelectedOdd(odd);
                                 setBetAmount(amount);
                                 setShowShareModal(true);
                             }}
