@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Users, TrendingUp, AlertTriangle, Trophy,
     ArrowUpRight, ArrowDownRight, Coins, MessageSquare,
-    Activity, Database, Clock, TrendingDown, Zap, DollarSign
+    Activity, Database, Clock, TrendingDown, Zap, DollarSign,
+    Flag
 } from 'lucide-react';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -10,6 +11,7 @@ import {
     Area, AreaChart
 } from 'recharts';
 import { useApiQuota } from '../../hooks/useAdmin';
+import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 
 const MOCK_KPIS = {
     dau: { value: 2847, change: 12.5, trend: 'up' as const },
@@ -66,6 +68,7 @@ const CHART_COLORS = {
 
 export const AdminDashboard: React.FC = () => {
     const { dailyStats, currentQuota, loading: quotaLoading } = useApiQuota();
+    const [activeTab, setActiveTab] = useState<'overview' | 'feature-flags'>('overview');
 
     // Prepare chart data
     const usageChartData = dailyStats.map(stat => ({
@@ -109,8 +112,38 @@ export const AdminDashboard: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-slide-up">
-            {/* KPI Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 border-b border-slate-800 pb-4">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                        activeTab === 'overview'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                >
+                    <Activity size={18} />
+                    Vue d'ensemble
+                </button>
+                <button
+                    onClick={() => setActiveTab('feature-flags')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                        activeTab === 'feature-flags'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                >
+                    <Flag size={18} />
+                    Feature Flags
+                </button>
+            </div>
+
+            {activeTab === 'feature-flags' ? (
+                <FeatureFlagsPanel />
+            ) : (
+                <>
+                    {/* KPI Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Utilisateurs Actifs (DAU)"
                     value={MOCK_KPIS.dau.value}
@@ -494,6 +527,8 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </>
+            )}
         </div>
     );
 };

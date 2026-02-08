@@ -234,3 +234,44 @@ export interface BlitzEntry {
   win_amount: number;
   created_at: number;
 }
+
+// ============================================
+// Feature Flags System
+// ============================================
+
+export type Environment = 'dev' | 'staging' | 'prod';
+
+export interface FeatureFlagsConfig {
+  debug_mode: boolean;
+  experimental_features: {
+    ultimate_fantazia: boolean;
+    blitz_mode: boolean;
+    marketplace: boolean;
+    social_stories: boolean;
+    voice_chat: boolean;
+  };
+  sync_intervals: {
+    match_polling_seconds: number;
+    leaderboard_refresh_seconds: number;
+    chat_refresh_seconds: number;
+    api_quota_check_minutes: number;
+  };
+  api_settings: {
+    enable_api_calls: boolean;
+    max_daily_calls: number;
+    enable_caching: boolean;
+    cache_ttl_minutes: number;
+  };
+  maintenance: {
+    enabled: boolean;
+    message: string;
+    allowed_users: string[];
+  };
+  last_updated: number;
+  updated_by: string;
+}
+
+export interface EnvironmentConfig {
+  environment: Environment;
+  flags: FeatureFlagsConfig;
+}

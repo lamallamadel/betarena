@@ -327,6 +327,94 @@ See **`docs/API_MONITORING.md`** for complete technical documentation, including
 - `firestore.indexes.json`: Query indexes for daily stats and calls
 - `package.json`: Added `recharts` dependency
 
+## Feature Flags System
+
+The application now includes a centralized **Feature Flags system** for dynamic configuration management without requiring redeployment.
+
+### Key Features
+- **Multi-environment support**: Separate configs for dev, staging, and prod
+- **Debug mode toggle**: Enable detailed logging and dev tools
+- **Experimental features**: Toggle marketplace, Ultimate Fantazia, Blitz mode, voice chat, etc.
+- **Sync intervals**: Configure polling frequencies for matches, leaderboard, chat, and API quota checks
+- **API settings**: Control API calls, caching, and daily limits
+- **Maintenance mode**: Block app access with custom message and allowlist
+- **Change logs**: Automatic audit trail of all flag modifications
+- **Real-time updates**: Flags propagate instantly via Firestore listeners
+
+### Architecture
+
+**Firestore Structure:**
+```
+artifacts/botola-v1/config/feature_flags/
+  environments/
+    dev/      - Development environment flags
+    staging/  - Staging environment flags
+    prod/     - Production environment flags
+  logs/       - Change audit logs
+```
+
+**Access:**
+- Admin UI: `/?admin=true` → "Feature Flags" tab
+- Environment auto-detected based on hostname (localhost = dev, staging subdomain = staging, else = prod)
+
+### Usage in Code
+
+```typescript
+import { useFeatureFlag } from './hooks/useFeatureFlag';
+
+function MyComponent() {
+  const { isEnabled, flags, getPollingInterval } = useFeatureFlag();
+
+  // Check if feature is enabled
+  if (isEnabled('marketplace')) {
+    return <MarketplaceView />;
+  }
+
+  // Get dynamic polling interval
+  const interval = getPollingInterval('match'); // returns ms
+
+  // Access debug mode
+  if (flags.debug_mode) {
+    console.log('Debug info...');
+  }
+}
+```
+
+### Maintenance Mode
+
+When enabled, displays a maintenance screen to all users except those in the allowlist:
+
+```typescript
+const { checkMaintenanceMode, flags } = useFeatureFlag();
+const inMaintenance = checkMaintenanceMode(user?.uid);
+
+if (inMaintenance) {
+  return <MaintenanceMode message={flags.maintenance.message} />;
+}
+```
+
+### Documentation
+See **`docs/FEATURE_FLAGS.md`** for complete documentation, including:
+- Full configuration schema
+- Security rules
+- Best practices
+- Troubleshooting guide
+- API reference
+
+### Files Added/Modified
+- `src/components/admin/FeatureFlagsPanel.tsx`: Admin UI for managing flags
+- `src/components/admin/AdminDashboard.tsx`: Added "Feature Flags" tab
+- `src/components/ui/MaintenanceMode.tsx`: Maintenance screen component
+- `src/context/FeatureFlagsContext.tsx`: React context provider
+- `src/hooks/useFeatureFlag.ts`: Convenience hook for consuming flags
+- `src/hooks/useAdmin.ts`: Added `useFeatureFlags()` and `useFeatureFlagsLogs()` hooks
+- `src/types/types.ts`: Added `Environment`, `FeatureFlagsConfig`, `EnvironmentConfig` types
+- `src/main.tsx`: Wrapped app in `FeatureFlagsProvider`
+- `src/App.tsx`: Added maintenance mode check
+- `firestore.rules`: Added security rules for feature flags
+- `firestore.indexes.json`: Added indexes for logs queries
+- `docs/FEATURE_FLAGS.md`: Complete feature documentation
+
 ## Working With This Codebase
 
 ### Adding a New View

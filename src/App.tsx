@@ -3,6 +3,7 @@ import { Layout, MessageSquare, Trophy, Swords, User } from 'lucide-react';
 
 // Hooks
 import { useAuth } from './context/AuthContext';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 // import { useMatch } from './hooks/useMatch';
 import { useBetting } from './hooks/useBetting';
 import { useGamification } from './hooks/useGamification';
@@ -26,19 +27,20 @@ import { StandingsTable } from './components/standings';
 // UI Components
 import { ToastNotification } from './components/ui/ToastNotification';
 import { NotificationsOverlay } from './components/ui/NotificationsOverlay';
+import { MaintenanceMode } from './components/ui/MaintenanceMode';
 
 // Types
 import type { RichUserProfile } from './types/types';
 
 export default function App() {
     const { user: authUser, profile, loading, isOnboarding } = useAuth();
+    const { canAccessDuringMaintenance, isMaintenanceMode, getMaintenanceMessage, isDebugMode } = useFeatureFlags();
     const [currentView, setCurrentView] = useState('HOME');
     const [selectedMatch, setSelectedMatch] = useState<any>(null);
     const [showNotifOverlay, setShowNotifOverlay] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [showToast, setShowToast] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
-    const [isDebugMode, setIsDebugMode] = useState(false);
     const [selectedOdd, setSelectedOdd] = useState<{ label: string, val: number } | null>(null);
     const [betAmount, setBetAmount] = useState(100);
 
@@ -111,9 +113,14 @@ export default function App() {
     if (loading) return <div className="h-screen bg-slate-950 text-white flex items-center justify-center">Chargement...</div>;
     if (isOnboarding) return <Onboarding />;
 
-    // Admin mode (access via ?admin=true in URL)
+    // Admin mode (access via ?admin=true in URL) - bypass maintenance mode
     const isAdminMode = window.location.search.includes('admin=true');
     if (isAdminMode) return <AdminApp />;
+
+    // Check maintenance mode
+    if (isMaintenanceMode() && authUser && !canAccessDuringMaintenance(authUser.uid)) {
+        return <MaintenanceMode message={getMaintenanceMessage()} />;
+    }
 
     // Standings mode (access via ?standings=true in URL)
     const isStandingsMode = window.location.search.includes('standings=true');
@@ -156,8 +163,8 @@ export default function App() {
                         <ProfileView 
                             user={user} 
                             onNavigate={handleNavigate} 
-                            isDebugMode={isDebugMode}
-                            onToggleDebug={() => setIsDebugMode(!isDebugMode)}
+                            isDebugMode={isDebugMode()}
+                            onToggleDebug={() => {}}
                         />
                     )}
                     {currentView === 'SHOP' && <ShopView user={user} onNavigate={handleNavigate} onBuyItem={handleBuyItem} onEquipItem={(type, asset) => equipItem(type, asset)} />}

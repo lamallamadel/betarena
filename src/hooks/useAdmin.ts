@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp, increment, onSnapshot } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp, increment, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
+import type { Environment, FeatureFlagsConfig, EnvironmentConfig } from '../types/types';
 
 interface AdminLog {
     id?: string;
@@ -369,4 +370,178 @@ export const useApiQuota = (): ApiQuotaData => {
         currentQuota,
         loading,
     };
+};
+
+// Default feature flags configuration
+const DEFAULT_FLAGS: FeatureFlagsConfig = {
+    debug_mode: false,
+    experimental_features: {
+        ultimate_fantazia: false,
+        blitz_mode: false,
+        marketplace: false,
+        social_stories: true,
+        voice_chat: false,
+    },
+    sync_intervals: {
+        match_polling_seconds: 60,
+        leaderboard_refresh_seconds: 30,
+        chat_refresh_seconds: 5,
+        api_quota_check_minutes: 15,
+    },
+    api_settings: {
+        enable_api_calls: true,
+        max_daily_calls: 100,
+        enable_caching: true,
+        cache_ttl_minutes: 60,
+    },
+    maintenance: {
+        enabled: false,
+        message: '',
+        allowed_users: [],
+    },
+    last_updated: Date.now(),
+    updated_by: 'system',
+};
+
+// Hook for feature flags management
+export const useFeatureFlags = (environment: Environment = 'dev') => {
+    const [flags, setFlags] = useState<FeatureFlagsConfig>(DEFAULT_FLAGS);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const flagsDocRef = doc(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'environments', environment);
+
+        const unsubscribe = onSnapshot(
+            flagsDocRef,
+            (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data() as EnvironmentConfig;
+                    setFlags(data.flags);
+                } else {
+                    setFlags(DEFAULT_FLAGS);
+                }
+                setLoading(false);
+            },
+            (err) => {
+                console.error('[useFeatureFlags] Error fetching flags:', err);
+                setError(err.message);
+                setFlags(DEFAULT_FLAGS);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [environment]);
+
+    const updateFlags = async (
+        newFlags: Partial<FeatureFlagsConfig>,
+        userId: string,
+        userName: string
+    ): Promise<boolean> => {
+        try {
+            const flagsDocRef = doc(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'environments', environment);
+            
+            const updatedFlags: FeatureFlagsConfig = {
+                ...flags,
+                ...newFlags,
+                last_updated: Date.now(),
+                updated_by: userName,
+            };
+
+            await setDoc(flagsDocRef, {
+                environment,
+                flags: updatedFlags,
+            });
+
+            const logRef = collection(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'logs');
+            await addDoc(logRef, {
+                environment,
+                changed_by: userId,
+                changed_by_name: userName,
+                changes: newFlags,
+                timestamp: serverTimestamp(),
+            });
+
+            return true;
+        } catch (err) {
+            console.error('[useFeatureFlags] Error updating flags:', err);
+            setError(err instanceof Error ? err.message : 'Unknown error');
+            return false;
+        }
+    };
+
+    const resetToDefaults = async (userId: string, userName: string): Promise<boolean> => {
+        try {
+            const flagsDocRef = doc(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'environments', environment);
+            
+            const resetFlags: FeatureFlagsConfig = {
+                ...DEFAULT_FLAGS,
+                last_updated: Date.now(),
+                updated_by: userName,
+            };
+
+            await setDoc(flagsDocRef, {
+                environment,
+                flags: resetFlags,
+            });
+
+            const logRef = collection(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'logs');
+            await addDoc(logRef, {
+                environment,
+                changed_by: userId,
+                changed_by_name: userName,
+                changes: { action: 'RESET_TO_DEFAULTS' },
+                timestamp: serverTimestamp(),
+            });
+
+            return true;
+        } catch (err) {
+            console.error('[useFeatureFlags] Error resetting flags:', err);
+            setError(err instanceof Error ? err.message : 'Unknown error');
+            return false;
+        }
+    };
+
+    return {
+        flags,
+        loading,
+        error,
+        updateFlags,
+        resetToDefaults,
+    };
+};
+
+// Hook to get change logs
+export const useFeatureFlagsLogs = () => {
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const logsQuery = query(
+            collection(db, 'artifacts', APP_ID, 'config', 'feature_flags', 'logs'),
+            orderBy('timestamp', 'desc'),
+            limit(50)
+        );
+
+        const unsubscribe = onSnapshot(
+            logsQuery,
+            (snapshot) => {
+                const logData = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                setLogs(logData);
+                setLoading(false);
+            },
+            (error) => {
+                console.error('[useFeatureFlagsLogs] Error fetching logs:', error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, []);
+
+    return { logs, loading };
 };
