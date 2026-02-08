@@ -9,7 +9,7 @@ import { useGamification } from './hooks/useGamification';
 
 // Components (Views)
 import { HomeView } from './components/layout/HomeView';
-import { MatchCenterView } from './features/match/components';
+import { MatchCenterView } from './features/match';
 import { SocialView } from './components/social/SocialView';
 import { LeaderboardView } from './components/social/LeaderboardView';
 import { ProfileView } from './components/profile/ProfileView';
