@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, addDoc, where, orderBy, limit, serverTimestamp, increment, onSnapshot } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 
 interface AdminLog {
@@ -8,8 +8,8 @@ interface AdminLog {
     adminName: string;
     action: 'MATCH_OVERRIDE' | 'USER_CREDIT' | 'USER_BAN' | 'PUSH_SENT';
     targetId: string;
-    diff: Record<string, any>;
-    timestamp: any;
+    diff: Record<string, unknown>;
+    timestamp: unknown;
     ipAddress?: string;
 }
 
@@ -30,6 +30,28 @@ interface AdminMatch {
     isLocked: boolean;
     betsCount: number;
     date: string;
+}
+
+export interface ApiDailyStats {
+    date: string;
+    total_calls: number;
+    successful_calls: number;
+    failed_calls: number;
+    total_response_time: number;
+    last_remaining?: number;
+    last_limit?: number;
+    last_updated?: unknown;
+}
+
+export interface ApiQuotaData {
+    dailyStats: ApiDailyStats[];
+    currentQuota: {
+        remaining: number;
+        limit: number;
+        used: number;
+        usagePercent: number;
+    };
+    loading: boolean;
 }
 
 export const useAdmin = (adminUser: { uid: string; name: string; role: string } | null) => {
@@ -53,9 +75,9 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
                 ...doc.data()
             })) as AdminMatch[];
             setMatches(matchData);
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error fetching matches:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : 'Unknown error');
         } finally {
             setLoading(false);
         }
@@ -75,13 +97,13 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
                 ...doc.data()
             })) as AdminLog[];
             setLogs(logData);
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error fetching logs:', err);
         }
     };
 
     // Log admin action
-    const logAction = async (action: AdminLog['action'], targetId: string, diff: Record<string, any>) => {
+    const logAction = async (action: AdminLog['action'], targetId: string, diff: Record<string, unknown>) => {
         if (!adminUser) return;
 
         try {
@@ -95,7 +117,7 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
             });
             // Refresh logs
             fetchLogs();
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error logging action:', err);
         }
     };
@@ -181,9 +203,9 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
             fetchMatches();
             return true;
 
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error overriding match:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : 'Unknown error');
             return false;
         } finally {
             setLoading(false);
@@ -213,9 +235,9 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
             });
 
             return true;
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error crediting user:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : 'Unknown error');
             return false;
         }
     };
@@ -247,9 +269,9 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
             });
 
             return true;
-        } catch (err: any) {
+        } catch (err) {
             console.error('[Admin] Error banning user:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : 'Unknown error');
             return false;
         }
     };
@@ -273,5 +295,78 @@ export const useAdmin = (adminUser: { uid: string; name: string; role: string } 
         logAction,
         refreshMatches: fetchMatches,
         refreshLogs: fetchLogs
+    };
+};
+
+// Hook for API quota monitoring
+export const useApiQuota = (): ApiQuotaData => {
+    const [dailyStats, setDailyStats] = useState<ApiDailyStats[]>([]);
+    const [currentQuota, setCurrentQuota] = useState({
+        remaining: 0,
+        limit: 100,
+        used: 0,
+        usagePercent: 0,
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Subscribe to last 30 days of stats
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+        const startDate = last30Days.toISOString().split('T')[0];
+
+        const statsQuery = query(
+            collection(db, 'artifacts', APP_ID, 'admin', 'api_monitoring', 'daily_stats'),
+            where('date', '>=', startDate),
+            orderBy('date', 'desc'),
+            limit(30)
+        );
+
+        const unsubscribe = onSnapshot(
+            statsQuery,
+            (snapshot) => {
+                const stats: ApiDailyStats[] = [];
+                snapshot.forEach((doc) => {
+                    stats.push({
+                        date: doc.id,
+                        ...doc.data()
+                    } as ApiDailyStats);
+                });
+
+                // Sort by date ascending for charts
+                stats.sort((a, b) => a.date.localeCompare(b.date));
+                setDailyStats(stats);
+
+                // Get current quota from most recent entry
+                if (stats.length > 0) {
+                    const latest = stats[stats.length - 1];
+                    const remaining = latest.last_remaining ?? 0;
+                    const limit = latest.last_limit ?? 100;
+                    const used = limit - remaining;
+                    const usagePercent = limit > 0 ? (used / limit) * 100 : 0;
+
+                    setCurrentQuota({
+                        remaining,
+                        limit,
+                        used,
+                        usagePercent,
+                    });
+                }
+
+                setLoading(false);
+            },
+            (error) => {
+                console.error('[useApiQuota] Error fetching stats:', error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, []);
+
+    return {
+        dailyStats,
+        currentQuota,
+        loading,
     };
 };

@@ -297,6 +297,36 @@ firebase functions:config:set sports.api_key=YOUR_KEY
 | RG-F02 | Max 3 rewarded shares per day | Social Share |
 | RG-G01 | All admin actions logged immutably | Admin |
 
+## API Quota Monitoring
+
+The admin dashboard now includes comprehensive **API-Football quota monitoring** with real-time tracking, visual charts, and cost projections.
+
+### Key Features
+- **Real-time quota tracking**: Current usage vs. daily limit (100 req/day free tier)
+- **Visual charts**: 5 interactive Recharts visualizations (usage trends, success rate, response time, etc.)
+- **Cost projections**: Automatic calculation of monthly API costs based on usage patterns
+- **Performance monitoring**: Track API response times and success/failure rates
+- **Alerts**: Visual warnings at 70% and 90% quota usage
+
+### Access
+Navigate to `/?admin=true` to view the monitoring dashboard.
+
+### Documentation
+See **`docs/API_MONITORING.md`** for complete technical documentation, including:
+- Architecture details
+- Firestore data structure
+- Chart interpretation guide
+- Optimization recommendations
+- Cost calculation formulas
+
+### Files Modified
+- `src/components/admin/AdminDashboard.tsx`: Main dashboard with charts
+- `src/hooks/useAdmin.ts`: Added `useApiQuota()` hook for real-time data
+- `functions/src/sportsapi.ts`: Automatic API call logging + `getApiQuotaStats` endpoint
+- `firestore.rules`: Security rules for admin monitoring data
+- `firestore.indexes.json`: Query indexes for daily stats and calls
+- `package.json`: Added `recharts` dependency
+
 ## Working With This Codebase
 
 ### Adding a New View

@@ -164,10 +164,80 @@ function gridToCoordinates(grid: string | null, formation: string): { x: number;
 }
 
 // ============================================
+// API QUOTA TRACKING
+// ============================================
+
+interface ApiQuotaLog {
+    timestamp: admin.firestore.FieldValue;
+    endpoint: string;
+    success: boolean;
+    status_code?: number;
+    error_message?: string;
+    requests_remaining?: number;
+    requests_limit?: number;
+    response_time_ms: number;
+    date_key: string; // YYYY-MM-DD for daily aggregation
+}
+
+async function logApiCall(
+    endpoint: string,
+    success: boolean,
+    responseTimeMs: number,
+    statusCode?: number,
+    errorMessage?: string,
+    quotaHeaders?: { remaining?: number; limit?: number }
+) {
+    try {
+        const now = new Date();
+        const dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        const logData: ApiQuotaLog = {
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            endpoint,
+            success,
+            status_code: statusCode,
+            error_message: errorMessage,
+            requests_remaining: quotaHeaders?.remaining,
+            requests_limit: quotaHeaders?.limit,
+            response_time_ms: responseTimeMs,
+            date_key: dateKey,
+        };
+
+        await db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("api_monitoring")
+            .collection("calls").add(logData);
+
+        // Update daily aggregate
+        const dailyRef = db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("api_monitoring")
+            .collection("daily_stats").doc(dateKey);
+
+        await dailyRef.set({
+            date: dateKey,
+            total_calls: admin.firestore.FieldValue.increment(1),
+            successful_calls: admin.firestore.FieldValue.increment(success ? 1 : 0),
+            failed_calls: admin.firestore.FieldValue.increment(success ? 0 : 1),
+            total_response_time: admin.firestore.FieldValue.increment(responseTimeMs),
+            last_updated: admin.firestore.FieldValue.serverTimestamp(),
+            last_remaining: quotaHeaders?.remaining,
+            last_limit: quotaHeaders?.limit,
+        }, { merge: true });
+
+    } catch (err) {
+        logger.error("Failed to log API call", { err });
+    }
+}
+
+// ============================================
 // API FETCH HELPER
 // ============================================
 
-async function fetchFromApi(endpoint: string): Promise<any[] | null> {
+async function fetchFromApi(endpoint: string): Promise<unknown[] | null> {
+    const startTime = Date.now();
+    let statusCode: number | undefined;
+    let errorMessage: string | undefined;
+    const quotaHeaders: { remaining?: number; limit?: number } = {};
+
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             headers: {
@@ -176,22 +246,56 @@ async function fetchFromApi(endpoint: string): Promise<any[] | null> {
             },
         });
 
+        statusCode = response.status;
+
+        // Extract quota headers
+        const remaining = response.headers.get("x-ratelimit-requests-remaining");
+        const limit = response.headers.get("x-ratelimit-requests-limit");
+        if (remaining) quotaHeaders.remaining = parseInt(remaining, 10);
+        if (limit) quotaHeaders.limit = parseInt(limit, 10);
+
+        const responseTime = Date.now() - startTime;
+
         if (!response.ok) {
             const body = await response.text();
+            errorMessage = `API Error ${response.status}: ${response.statusText}`;
             logger.error("API Error", { status: response.status, body, endpoint });
-            throw new Error(`API Error ${response.status}: ${response.statusText}`);
+            
+            // Log failed call
+            await logApiCall(endpoint, false, responseTime, statusCode, errorMessage, quotaHeaders);
+            
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();
 
         if (data.errors && Object.keys(data.errors).length > 0) {
+            errorMessage = `API errors: ${JSON.stringify(data.errors)}`;
             logger.error("API returned errors", { errors: data.errors, endpoint });
-            throw new Error(`API errors: ${JSON.stringify(data.errors)}`);
+            
+            // Log failed call
+            await logApiCall(endpoint, false, responseTime, statusCode, errorMessage, quotaHeaders);
+            
+            throw new Error(errorMessage);
         }
 
-        logger.info("API fetch OK", { endpoint, results: data.results });
+        logger.info("API fetch OK", { endpoint, results: data.results, remaining: quotaHeaders.remaining });
+        
+        // Log successful call
+        await logApiCall(endpoint, true, responseTime, statusCode, undefined, quotaHeaders);
+        
         return data.response;
     } catch (error) {
+        const responseTime = Date.now() - startTime;
+        if (!errorMessage) {
+            errorMessage = error instanceof Error ? error.message : String(error);
+        }
+        
+        // Log failed call if not already logged
+        if (statusCode === undefined) {
+            await logApiCall(endpoint, false, responseTime, undefined, errorMessage, quotaHeaders);
+        }
+        
         logger.error("API Fetch Error", { endpoint, error });
         throw error;
     }
@@ -534,6 +638,83 @@ export const syncAllLive = onCall(async (request) => {
 
     logger.info("syncAllLive completed", { liveCount: fixtures.length });
     return { success: true, liveCount: fixtures.length };
+});
+
+/**
+ * Get API quota statistics (admin only).
+ * Returns aggregated stats for monitoring dashboard.
+ */
+export const getApiQuotaStats = onCall(async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
+
+    try {
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+        const startDate = last30Days.toISOString().split('T')[0];
+
+        const statsRef = db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("api_monitoring")
+            .collection("daily_stats");
+
+        const snapshot = await statsRef
+            .where("date", ">=", startDate)
+            .orderBy("date", "desc")
+            .limit(30)
+            .get();
+
+        const stats = snapshot.docs.map(doc => ({
+            date: doc.id,
+            ...doc.data()
+        }));
+
+        // Get recent individual calls for detailed analysis
+        const callsRef = db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("api_monitoring")
+            .collection("calls");
+
+        const recentCalls = await callsRef
+            .orderBy("timestamp", "desc")
+            .limit(100)
+            .get();
+
+        const calls = recentCalls.docs.map(doc => doc.data());
+
+        // Calculate aggregates
+        const totalCalls = stats.reduce((sum, s) => sum + (s.total_calls || 0), 0);
+        const successfulCalls = stats.reduce((sum, s) => sum + (s.successful_calls || 0), 0);
+        const failedCalls = stats.reduce((sum, s) => sum + (s.failed_calls || 0), 0);
+        const avgResponseTime = totalCalls > 0 
+            ? Math.round(stats.reduce((sum, s) => sum + (s.total_response_time || 0), 0) / totalCalls)
+            : 0;
+
+        // Get current quota from latest entry
+        const latest = stats[0];
+        const currentQuota = {
+            remaining: latest?.last_remaining || 0,
+            limit: latest?.last_limit || 100,
+            used: (latest?.last_limit || 100) - (latest?.last_remaining || 0),
+            usagePercent: latest?.last_limit 
+                ? ((latest.last_limit - (latest.last_remaining || 0)) / latest.last_limit) * 100
+                : 0,
+        };
+
+        return {
+            success: true,
+            stats,
+            calls,
+            summary: {
+                totalCalls,
+                successfulCalls,
+                failedCalls,
+                successRate: totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0,
+                avgResponseTime,
+                currentQuota,
+            },
+        };
+    } catch (error) {
+        logger.error("Error fetching API quota stats", { error });
+        throw new HttpsError("internal", "Failed to fetch API quota stats");
+    }
 });
 
 /**
