@@ -2,6 +2,17 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import {
+    getOrFetch,
+    getFixturesKey,
+    getLiveMatchesKey,
+    getStandingsKey,
+    getEventsKey,
+    getLineupsKey,
+    getOddsKey,
+    CacheTTL,
+    isCacheEnabled,
+} from "./cache";
 
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -229,10 +240,14 @@ async function logApiCall(
 }
 
 // ============================================
-// API FETCH HELPER
+// API FETCH HELPER (Direct, no cache)
 // ============================================
 
-async function fetchFromApi(endpoint: string): Promise<unknown[] | null> {
+/**
+ * Direct API fetch without caching.
+ * Use this only when you specifically need to bypass cache.
+ */
+async function fetchFromApiDirect(endpoint: string): Promise<unknown[] | null> {
     const startTime = Date.now();
     let statusCode: number | undefined;
     let errorMessage: string | undefined;
@@ -299,6 +314,197 @@ async function fetchFromApi(endpoint: string): Promise<unknown[] | null> {
         logger.error("API Fetch Error", { endpoint, error });
         throw error;
     }
+}
+
+// ============================================
+// CACHED API FETCH WRAPPERS
+// ============================================
+
+/**
+ * Fetch fixtures with caching.
+ * TTL: 1 hour (fixtures don't change often).
+ */
+async function fetchFixturesCached(
+    date: string,
+    leagueId: number,
+    season: number
+): Promise<unknown[] | null> {
+    const endpoint = `/fixtures?date=${date}&league=${leagueId}&season=${season}`;
+    const cacheKey = getFixturesKey(date, leagueId, season);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching fixtures directly", { date, leagueId, season });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching fixtures with cache", { date, leagueId, season, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.FIXTURES,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch live matches with caching.
+ * TTL: 1 minute (live data needs frequent updates).
+ */
+async function fetchLiveMatchesCached(leagueIds: string): Promise<unknown[] | null> {
+    const endpoint = `/fixtures?live=${leagueIds}`;
+    const cacheKey = getLiveMatchesKey(leagueIds);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching live matches directly", { leagueIds });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching live matches with cache", { leagueIds, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.LIVE_MATCHES,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch standings with caching.
+ * TTL: 6 hours (standings update after each match day).
+ */
+async function fetchStandingsCached(
+    leagueId: number,
+    season: number
+): Promise<unknown[] | null> {
+    const endpoint = `/standings?league=${leagueId}&season=${season}`;
+    const cacheKey = getStandingsKey(leagueId, season);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching standings directly", { leagueId, season });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching standings with cache", { leagueId, season, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.STANDINGS,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch match events with caching.
+ * TTL: 2 minutes (events update during live games).
+ */
+async function fetchEventsCached(fixtureId: number): Promise<unknown[] | null> {
+    const endpoint = `/fixtures/events?fixture=${fixtureId}`;
+    const cacheKey = getEventsKey(fixtureId);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching events directly", { fixtureId });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching events with cache", { fixtureId, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.EVENTS,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch match lineups with caching.
+ * TTL: 1 hour (lineups don't change once announced).
+ */
+async function fetchLineupsCached(fixtureId: number): Promise<unknown[] | null> {
+    const endpoint = `/fixtures/lineups?fixture=${fixtureId}`;
+    const cacheKey = getLineupsKey(fixtureId);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching lineups directly", { fixtureId });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching lineups with cache", { fixtureId, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.LINEUPS,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch match odds with caching.
+ * TTL: 30 minutes (odds can fluctuate pre-match).
+ */
+async function fetchOddsCached(
+    fixtureId: number,
+    bookmakerId: number
+): Promise<unknown[] | null> {
+    const endpoint = `/odds?fixture=${fixtureId}&bookmaker=${bookmakerId}`;
+    const cacheKey = getOddsKey(fixtureId, bookmakerId);
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching odds directly", { fixtureId, bookmakerId });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching odds with cache", { fixtureId, bookmakerId, cacheKey });
+
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.ODDS,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
+}
+
+/**
+ * Fetch single fixture by ID with caching.
+ * TTL: 1 hour for pre-match, 1 minute for live.
+ */
+async function fetchFixtureByIdCached(fixtureId: number): Promise<unknown[] | null> {
+    const endpoint = `/fixtures?id=${fixtureId}`;
+    // Use a special cache key format for single fixture lookups
+    const cacheKey = `${getEventsKey(fixtureId).split(':fixture:')[0]}:single:${fixtureId}`;
+
+    if (!isCacheEnabled()) {
+        logger.debug("Cache disabled, fetching fixture by ID directly", { fixtureId });
+        return fetchFromApiDirect(endpoint);
+    }
+
+    logger.debug("Fetching fixture by ID with cache", { fixtureId, cacheKey });
+
+    // Use shorter TTL since this could be a live match
+    return getOrFetch(
+        cacheKey,
+        CacheTTL.LIVE_MATCHES,
+        async () => {
+            const data = await fetchFromApiDirect(endpoint);
+            return data;
+        }
+    );
 }
 
 // ============================================
@@ -439,18 +645,14 @@ export const syncFixtures = onCall(async (request) => {
     let totalCount = 0;
 
     for (const leagueId of leagues) {
-        // Try CURRENT_SEASON (2025) first
-        let fixtures = await fetchFromApi(
-            `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON}`
-        );
+        // Try CURRENT_SEASON (2025) first with caching
+        let fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON);
 
         // Fallback: If no results, try previous season (2024)
         // This handles cases where the API considers the current date part of the previous season
         if (!fixtures || fixtures.length === 0) {
             logger.info(`No fixtures found for league ${leagueId} in season ${CURRENT_SEASON}. Trying ${CURRENT_SEASON - 1}...`);
-            fixtures = await fetchFromApi(
-                `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON - 1}`
-            );
+            fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON - 1);
         }
 
         if (!fixtures || fixtures.length === 0) {
@@ -475,7 +677,7 @@ export const syncFixtures = onCall(async (request) => {
         // Fetch odds for pre-match fixtures (bookmaker 8 = Bet365)
         for (const fixtureId of fixtureIds) {
             try {
-                const odds = await fetchFromApi(`/odds?fixture=${fixtureId}&bookmaker=8`) as ApiOddsResponse[] | null;
+                const odds = await fetchOddsCached(fixtureId, 8) as ApiOddsResponse[] | null;
                 if (odds && odds.length > 0) {
                     const matchWinner = odds[0].bookmakers?.[0]?.bets?.find(
                         (b) => b.id === 1
@@ -513,8 +715,8 @@ export const syncLiveMatch = onCall(async (request) => {
 
     const matchDocId = `api_${apiId}`;
 
-    // 1. Fetch updated fixture data (score, status, minute)
-    const fixtures = await fetchFromApi(`/fixtures?id=${apiId}`) as ApiFixture[] | null;
+    // 1. Fetch updated fixture data (score, status, minute) with caching
+    const fixtures = await fetchFixtureByIdCached(apiId) as ApiFixture[] | null;
     if (fixtures && fixtures.length > 0) {
         const matchData = mapFixtureToMatch(fixtures[0]);
         await getMatchRef(matchDocId).set(matchData, { merge: true });
@@ -528,8 +730,8 @@ export const syncLiveMatch = onCall(async (request) => {
         throw new HttpsError("not-found", `Match ${matchDocId} not found or missing home_id`);
     }
 
-    // 2. Fetch and sync events
-    const events = await fetchFromApi(`/fixtures/events?fixture=${apiId}`) as ApiEvent[] | null;
+    // 2. Fetch and sync events with caching
+    const events = await fetchEventsCached(apiId) as ApiEvent[] | null;
     if (events && events.length > 0) {
         const batch = db.batch();
         events.forEach((e, index) => {
@@ -539,8 +741,8 @@ export const syncLiveMatch = onCall(async (request) => {
         await batch.commit();
     }
 
-    // 3. Fetch and sync lineups
-    const lineups = await fetchFromApi(`/fixtures/lineups?fixture=${apiId}`) as ApiLineup[] | null;
+    // 3. Fetch and sync lineups with caching
+    const lineups = await fetchLineupsCached(apiId) as ApiLineup[] | null;
     if (lineups && lineups.length >= 2) {
         const homeLineup = lineups.find((l) => l.team.id === homeTeamId);
         const awayLineup = lineups.find((l) => l.team.id !== homeTeamId);
@@ -570,10 +772,10 @@ export const syncStandings = onCall(async (request) => {
     const leagues = leagueId ? [leagueId] : Object.keys(SUPPORTED_LEAGUES).map(Number);
 
     for (const lid of leagues) {
-        const response = await fetchFromApi(`/standings?league=${lid}&season=${CURRENT_SEASON}`);
+        const response = await fetchStandingsCached(lid, CURRENT_SEASON);
         if (!response || response.length === 0) continue;
 
-        const standings = response[0]?.league?.standings?.[0] as ApiStanding[] | undefined;
+        const standings = (response[0] as any)?.league?.standings?.[0] as ApiStanding[] | undefined;
         if (!standings) continue;
 
         const mapped = standings.map((s) => ({
@@ -613,7 +815,7 @@ export const syncAllLive = onCall(async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
     const leagueIds = Object.keys(SUPPORTED_LEAGUES).join("-");
-    const fixtures = await fetchFromApi(`/fixtures?live=${leagueIds}`) as ApiFixture[] | null;
+    const fixtures = await fetchLiveMatchesCached(leagueIds) as ApiFixture[] | null;
 
     if (!fixtures || fixtures.length === 0) {
         return { success: true, liveCount: 0 };
@@ -623,9 +825,9 @@ export const syncAllLive = onCall(async (request) => {
         const matchData = mapFixtureToMatch(f);
         await getMatchRef(matchData.id).set(matchData, { merge: true });
 
-        // Fetch events for each live match
+        // Fetch events for each live match with caching
         const homeTeamId = f.teams.home.id;
-        const events = await fetchFromApi(`/fixtures/events?fixture=${f.fixture.id}`) as ApiEvent[] | null;
+        const events = await fetchEventsCached(f.fixture.id) as ApiEvent[] | null;
         if (events && events.length > 0) {
             const batch = db.batch();
             events.forEach((e, index) => {
@@ -665,7 +867,7 @@ export const getApiQuotaStats = onCall(async (request) => {
         const stats = snapshot.docs.map(doc => ({
             date: doc.id,
             ...doc.data()
-        }));
+        })) as any[];
 
         // Get recent individual calls for detailed analysis
         const callsRef = db.collection("artifacts").doc(APP_ID)
@@ -680,15 +882,15 @@ export const getApiQuotaStats = onCall(async (request) => {
         const calls = recentCalls.docs.map(doc => doc.data());
 
         // Calculate aggregates
-        const totalCalls = stats.reduce((sum, s) => sum + (s.total_calls || 0), 0);
-        const successfulCalls = stats.reduce((sum, s) => sum + (s.successful_calls || 0), 0);
-        const failedCalls = stats.reduce((sum, s) => sum + (s.failed_calls || 0), 0);
+        const totalCalls = stats.reduce((sum: number, s: any) => sum + (s.total_calls || 0), 0);
+        const successfulCalls = stats.reduce((sum: number, s: any) => sum + (s.successful_calls || 0), 0);
+        const failedCalls = stats.reduce((sum: number, s: any) => sum + (s.failed_calls || 0), 0);
         const avgResponseTime = totalCalls > 0 
-            ? Math.round(stats.reduce((sum, s) => sum + (s.total_response_time || 0), 0) / totalCalls)
+            ? Math.round(stats.reduce((sum: number, s: any) => sum + (s.total_response_time || 0), 0) / totalCalls)
             : 0;
 
         // Get current quota from latest entry
-        const latest = stats[0];
+        const latest = stats[0] as any;
         const currentQuota = {
             remaining: latest?.last_remaining || 0,
             limit: latest?.last_limit || 100,
@@ -735,16 +937,12 @@ export const scheduledFixtureSync = onSchedule(
         for (const date of [today, tomorrow]) {
             for (const leagueId of leagues) {
                 try {
-                    // Try CURRENT_SEASON first
-                    let fixtures = await fetchFromApi(
-                        `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON}`
-                    ) as ApiFixture[] | null;
+                    // Try CURRENT_SEASON first with caching
+                    let fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON) as ApiFixture[] | null;
 
                     // Fallback to previous season
                     if (!fixtures || fixtures.length === 0) {
-                        fixtures = await fetchFromApi(
-                            `/fixtures?date=${date}&league=${leagueId}&season=${CURRENT_SEASON - 1}`
-                        ) as ApiFixture[] | null;
+                        fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON - 1) as ApiFixture[] | null;
                     }
 
                     if (fixtures && fixtures.length > 0) {
@@ -762,12 +960,12 @@ export const scheduledFixtureSync = onSchedule(
             }
         }
 
-        // Sync standings for all leagues
+        // Sync standings for all leagues with caching
         for (const leagueId of leagues) {
             try {
-                const response = await fetchFromApi(`/standings?league=${leagueId}&season=${CURRENT_SEASON}`);
+                const response = await fetchStandingsCached(leagueId, CURRENT_SEASON);
                 if (response && response.length > 0) {
-                    const standings = response[0]?.league?.standings?.[0] as ApiStanding[] | undefined;
+                    const standings = (response[0] as any)?.league?.standings?.[0] as ApiStanding[] | undefined;
                     if (standings) {
                         const mapped = standings.map((s) => ({
                             rank: s.rank,

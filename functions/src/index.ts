@@ -42,6 +42,18 @@ export { buyMarketListing, listCard, cancelListing, buyPack } from "./marketplac
 // Export Sports API functions
 export { syncFixtures, syncLiveMatch, syncStandings, syncAllLive, scheduledFixtureSync, getApiQuotaStats } from "./sportsapi";
 
+// Export Cache management functions
+export { 
+    invalidateFixturesCache,
+    invalidateLiveCache,
+    invalidateStandingsCache,
+    invalidateEventsCache,
+    invalidateLineupsCache,
+    invalidateOddsCache,
+    clearCache,
+    getCacheInfo
+} from "./cache";
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
