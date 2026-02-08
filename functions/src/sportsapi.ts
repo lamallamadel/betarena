@@ -24,7 +24,7 @@ const SUPPORTED_LEAGUES: Record<number, string> = {
     135: "Serie A",
 };
 
-const CURRENT_SEASON = 2024;
+const CURRENT_SEASON = 2025;
 
 // ============================================
 // API-FOOTBALL RESPONSE INTERFACES

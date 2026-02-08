@@ -3,7 +3,7 @@ import { Layout, MessageSquare, Trophy, Swords, User } from 'lucide-react';
 
 // Hooks
 import { useAuth } from './context/AuthContext';
-import { useMatch } from './hooks/useMatch';
+// import { useMatch } from './hooks/useMatch';
 import { useBetting } from './hooks/useBetting';
 import { useGamification } from './hooks/useGamification';
 
@@ -42,7 +42,7 @@ export default function App() {
     const [selectedOdd, setSelectedOdd] = useState<any>(null);
 
     // Business Hooks
-    const { } = useMatch(); // match unused for now
+    // const { } = useMatch(); // match unused for now
     const { placeBet, is1N2Locked, isScoreLocked, getExistingBet } = useBetting(authUser?.uid, selectedMatch?.id, selectedMatch?.status);
     const { buyItem, equipItem } = useGamification(authUser?.uid, profile);
 

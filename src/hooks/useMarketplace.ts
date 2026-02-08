@@ -93,17 +93,39 @@ export const useMarketplace = (userId: string | undefined) => {
   }, [fetchListings]);
 
   // --- Actions ---
+  const functions = getFunctions();
 
   const buyPack = async (packId: string): Promise<void> => {
-    console.log('buyPack logic needs to be restored or moved to backend', packId);
+    if (!userId) throw new Error('Non connecté');
+    const buyPackFn = httpsCallable(functions, 'buyPack');
+    try {
+      await buyPackFn({ packId });
+    } catch (err: any) {
+      console.error('Erreur achat pack:', err);
+      throw new Error(err.message || 'Échec de l\'achat');
+    }
   };
 
   const listCard = async (cardId: string, price: number): Promise<void> => {
-    console.log('listCard logic needs to be restored or moved to backend', cardId, price);
+    if (!userId) throw new Error('Non connecté');
+    const listCardFn = httpsCallable(functions, 'listCard');
+    try {
+      await listCardFn({ cardId, price });
+    } catch (err: any) {
+      console.error('Erreur mise en vente:', err);
+      throw new Error(err.message || 'Échec de la mise en vente');
+    }
   };
 
   const cancelListing = async (listingId: string): Promise<void> => {
-    console.log('cancelListing logic needs to be restored or moved to backend', listingId);
+    if (!userId) throw new Error('Non connecté');
+    const cancelListingFn = httpsCallable(functions, 'cancelListing');
+    try {
+      await cancelListingFn({ listingId });
+    } catch (err: any) {
+      console.error('Erreur annulation vente:', err);
+      throw new Error(err.message || 'Échec de l\'annulation');
+    }
   };
 
   /**

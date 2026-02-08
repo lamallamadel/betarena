@@ -37,7 +37,7 @@ export { resolveBlitz } from "./resolveBlitz";
 export { rewardShare } from "./social";
 
 // Export Marketplace (Module L) functions
-export { buyMarketListing } from "./marketplace";
+export { buyMarketListing, listCard, cancelListing, buyPack } from "./marketplace";
 
 // Export Sports API functions
 export { syncFixtures, syncLiveMatch, syncStandings, syncAllLive, scheduledFixtureSync } from "./sportsapi";

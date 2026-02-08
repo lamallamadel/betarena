@@ -217,7 +217,7 @@ type MatchStatus = 'PRE_MATCH' | 'SCHEDULED' | 'LIVE_1ST_HALF' | 'HALF_TIME' |
 
 ## Known Issues & Technical Debt
 
-1. **APP_ID mismatch**: Frontend uses `"botola-v1"`, Cloud Functions use `"betarena"` — data paths won't align unless resolved
+1. **APP_ID consistency**: Standardized on `"botola-v1"` across frontend and Cloud Functions. (Resolved)
 2. **No test suite**: No unit tests, integration tests, or test configuration exists
 3. **No React Router**: Navigation is manual state-driven, which doesn't support browser back/forward or deep links
 4. **Firebase API key is hardcoded** in `src/config/firebase.ts` — should use environment variables
