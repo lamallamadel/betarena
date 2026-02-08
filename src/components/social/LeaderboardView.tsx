@@ -33,7 +33,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ user, onNaviga
                     {/* 2nd Place */}
                     <div className="flex flex-col items-center">
                         <div className="text-slate-400 font-black mb-1">2</div>
-                        <AvatarDisplay avatar={top3[1].avatar as any} size="md" frame="border-slate-400" />
+                        <AvatarDisplay avatar={top3[1].avatar as any} size="md" frame="border-slate-400" level={top3[1].level} />
                         <div className="mt-2 h-20 w-20 bg-slate-800 rounded-t-lg flex flex-col items-center justify-center border-t-4 border-slate-400">
                             <span className="text-xs font-bold text-white max-w-[80px] truncate">{top3[1].user}</span>
                             <span className="text-[10px] text-yellow-500 font-mono">{top3[1].coins}</span>
@@ -42,7 +42,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ user, onNaviga
                     {/* 1st Place */}
                     <div className="flex flex-col items-center relative -top-4">
                         <div className="text-yellow-400 text-2xl mb-2 animate-bounce">👑</div>
-                        <AvatarDisplay avatar={top3[0].avatar as any} size="lg" frame="border-yellow-400 ring-4 ring-yellow-500/20" />
+                        <AvatarDisplay avatar={top3[0].avatar as any} size="lg" frame="border-yellow-400 ring-4 ring-yellow-500/20" level={top3[0].level} />
                         <div className="mt-2 h-28 w-24 bg-indigo-900/50 rounded-t-lg flex flex-col items-center justify-center border-t-4 border-yellow-400 relative overflow-hidden">
                             <div className="absolute inset-0 bg-yellow-500/10"></div>
                             <span className="text-sm font-black text-white max-w-[90px] truncate">{top3[0].user}</span>
@@ -52,7 +52,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ user, onNaviga
                     {/* 3rd Place */}
                     <div className="flex flex-col items-center">
                         <div className="text-amber-700 font-black mb-1">3</div>
-                        <AvatarDisplay avatar={top3[2].avatar as any} size="md" frame="border-amber-700" />
+                        <AvatarDisplay avatar={top3[2].avatar as any} size="md" frame="border-amber-700" level={top3[2].level} />
                         <div className="mt-2 h-16 w-20 bg-slate-800 rounded-t-lg flex flex-col items-center justify-center border-t-4 border-amber-700">
                             <span className="text-xs font-bold text-white max-w-[80px] truncate">{top3[2].user}</span>
                             <span className="text-[10px] text-yellow-500 font-mono">{top3[2].coins}</span>
@@ -62,7 +62,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ user, onNaviga
 
                 {/* LIST */}
                 <div className="bg-slate-900 rounded-[32px] border border-slate-800 overflow-hidden shadow-2xl mb-8">
-                    {rest.map((item, i) => (
+                    {rest.map((item) => (
                         <div key={item.user} className={`flex items-center gap-4 p-4 border-b border-slate-800/50 last:border-0 ${item.user === user.username ? 'bg-emerald-500/10' : ''}`}>
                             <span className="w-6 text-sm font-bold text-slate-500">#{item.rank}</span>
                             <AvatarDisplay avatar={item.avatar as any} size="sm" frame="border-slate-800" level={item.level} />

@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react';
 import { doc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db, APP_ID } from '../config/firebase';
-import type { Match, MatchEventType } from '../types/types';
+import { db, APP_ID } from '../../../config/firebase';
+import type { Match, MatchEvent } from '../../../types/types';
 
-export interface MatchEvent {
-    id: string;
-    type: MatchEventType;
-    minute: number;
-    team: 'home' | 'away' | 'system';
-    player_main?: string;
-    player_assist?: string;
-    is_cancelled?: boolean;
-    text?: string;
-    timestamp?: number;
-}
+export type { MatchEvent };
 
 export const useMatchLive = (matchId: string, initialMatch?: Match) => {
     const [liveMatch, setLiveMatch] = useState<Match | undefined>(initialMatch);

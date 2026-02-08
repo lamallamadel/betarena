@@ -9,7 +9,7 @@ import { useGamification } from './hooks/useGamification';
 
 // Components (Views)
 import { HomeView } from './components/layout/HomeView';
-import { MatchCenterView } from './components/match/MatchCenterView';
+import { MatchCenterView } from './features/match';
 import { SocialView } from './components/social/SocialView';
 import { LeaderboardView } from './components/social/LeaderboardView';
 import { ProfileView } from './components/profile/ProfileView';
@@ -175,7 +175,6 @@ export default function App() {
                                 setBetAmount(amount);
                                 setShowShareModal(true);
                             }}
-                            onShare={() => setShowShareModal(true)}
                             is1N2Locked={is1N2Locked()}
                             isScoreLocked={isScoreLocked()}
                             existingBet1N2={getExistingBet('1N2')}

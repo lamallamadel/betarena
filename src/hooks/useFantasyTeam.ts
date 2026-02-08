@@ -18,7 +18,6 @@ import type {
   Formation,
   Card,
   PlayerPosition,
-  VALID_FORMATIONS,
 } from '../types/types';
 import { VALID_FORMATIONS as FORMATIONS } from '../types/types';
 

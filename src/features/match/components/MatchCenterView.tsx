@@ -4,14 +4,14 @@ import {
 } from 'lucide-react';
 import { SoccerPitch } from './SoccerPitch';
 import { PredictionTrends } from './PredictionTrends';
-import { ChatRoom } from '../social/chatRoom';
-import { TeamLogo } from '../ui/TeamLogo';
-import { useChat } from '../../hooks/useChat';
-import { useMatchLive } from '../../features/match/hooks/useMatchLive';
+import { ChatRoom } from '../../../components/social/chatRoom';
+import { TeamLogo } from '../../../components/ui/TeamLogo';
+import { useChat } from '../../../hooks/useChat';
+import { useMatchLive } from '../hooks/useMatchLive';
 import { TimelineEvent } from './TimelineEvent';
-import { MatchSimulator } from '../../utils/matchSimulator';
-import { ShareModal } from '../social/ShareModal';
-import type { RichUserProfile } from '../../types/types';
+import { MatchSimulator } from '../../../utils/matchSimulator';
+import { ShareModal } from '../../../components/social/ShareModal';
+import type { RichUserProfile } from '../../../types/types';
 
 interface MatchCenterViewProps {
     match: any; // Ideally typed with Match type but simplified for migration
@@ -33,15 +33,13 @@ interface MatchCenterViewProps {
         betsOn2: number;
         betsOnScores: Record<string, number>;
     };
-    isDebugMode?: boolean;
 }
 
 export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     match, user, onNavigate, onPlaceBet,
     is1N2Locked = false, isScoreLocked = false,
     existingBet1N2, existingBetScore,
-    isPariMutuel = false, poolStats,
-    isDebugMode = false
+    isPariMutuel = false, poolStats
 }) => {
     const [matchTab, setMatchTab] = useState<'timeline' | 'compos' | 'pronos' | 'chat'>('timeline');
     const [activeRoom, setActiveRoom] = useState<string>('GLOBAL');
@@ -209,33 +207,31 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                 </div>
             </div>
 
-            {/* ADMIN SIMULATOR (DEV ONLY - Controlled by Profile Settings) */}
-            {isDebugMode && (
-                <div className="mb-4 mx-4 p-2 bg-slate-900/50 border border-slate-800 rounded-lg flex flex-wrap gap-2 justify-center">
-                    <span className="text-[10px] text-slate-500 w-full text-center uppercase font-bold">Admin Simulator</span>
-                    <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'home', 'Home Player', currentMinute)} className="px-2 py-1 bg-indigo-600 text-xs rounded text-white active:scale-95">Goal Home</button>
-                    <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'away', 'Away Player', currentMinute)} className="px-2 py-1 bg-pink-600 text-xs rounded text-white active:scale-95">Goal Away</button>
-                    <button onClick={() => MatchSimulator.updateMinute(matchIdStr, currentMinute + 1)} className="px-2 py-1 bg-slate-700 text-xs rounded text-white active:scale-95">+1 Min</button>
-                    <button onClick={() => events[0] && MatchSimulator.triggerVarCancel(matchIdStr, events[0].id, events[0].team as any)} className="px-2 py-1 bg-red-900/50 border border-red-500 text-red-400 text-xs rounded active:scale-95">VAR Cancel Last</button>
-                    {match.api_id && (
-                        <button
-                            onClick={async () => {
-                                const { getFunctions, httpsCallable } = await import('firebase/functions');
-                                const functions = getFunctions();
-                                const syncLive = httpsCallable(functions, 'syncLiveMatch');
-                                try {
-                                    await syncLive({ apiId: match.api_id });
-                                } catch (e) {
-                                    console.error('Live sync error', e);
-                                }
-                            }}
-                            className="px-2 py-1 bg-emerald-700 text-xs rounded text-white active:scale-95 flex items-center gap-1"
-                        >
-                            <RefreshCcw size={12} /> Sync API
-                        </button>
-                    )}
-                </div>
-            )}
+            {/* ADMIN SIMULATOR (DEV ONLY) */}
+            <div className="mb-4 mx-4 p-2 bg-slate-900/50 border border-slate-800 rounded-lg flex flex-wrap gap-2 justify-center">
+                <span className="text-[10px] text-slate-500 w-full text-center uppercase font-bold">Admin Simulator</span>
+                <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'home', 'Home Player', currentMinute)} className="px-2 py-1 bg-indigo-600 text-xs rounded text-white active:scale-95">Goal Home</button>
+                <button onClick={() => MatchSimulator.triggerGoal(matchIdStr, 'away', 'Away Player', currentMinute)} className="px-2 py-1 bg-pink-600 text-xs rounded text-white active:scale-95">Goal Away</button>
+                <button onClick={() => MatchSimulator.updateMinute(matchIdStr, currentMinute + 1)} className="px-2 py-1 bg-slate-700 text-xs rounded text-white active:scale-95">+1 Min</button>
+                <button onClick={() => events[0] && MatchSimulator.triggerVarCancel(matchIdStr, events[0].id, events[0].team as any)} className="px-2 py-1 bg-red-900/50 border border-red-500 text-red-400 text-xs rounded active:scale-95">VAR Cancel Last</button>
+                {match.api_id && (
+                    <button
+                        onClick={async () => {
+                            const { getFunctions, httpsCallable } = await import('firebase/functions');
+                            const functions = getFunctions();
+                            const syncLive = httpsCallable(functions, 'syncLiveMatch');
+                            try {
+                                await syncLive({ apiId: match.api_id });
+                            } catch (e) {
+                                console.error('Live sync error', e);
+                            }
+                        }}
+                        className="px-2 py-1 bg-emerald-700 text-xs rounded text-white active:scale-95 flex items-center gap-1"
+                    >
+                        <RefreshCcw size={12} /> Sync API
+                    </button>
+                )}
+            </div>
 
             {/* TAB SELECTOR - 4 onglets comme Maquette */}
             <div className="flex border-b border-slate-900 bg-slate-950 px-4 sticky top-0 z-20">

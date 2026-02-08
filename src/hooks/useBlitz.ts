@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { doc, collection, onSnapshot, runTransaction, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { doc, collection, onSnapshot, runTransaction, query, where, orderBy, limit } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
-import type { BlitzTournament, BlitzEntry, DraftCard, PlayerReference } from '../types/types';
+import type { BlitzTournament, BlitzEntry, DraftCard, PlayerReference, DraftCardTier, PlayerPosition } from '../types/types';
 
 // Mock player pool for draft generation (RNG)
 const MOCK_PLAYER_POOL: PlayerReference[] = [
@@ -51,7 +51,7 @@ const generateDraftPool = (): DraftCard[] => {
     shuffle(tier).slice(0, n).map((p): DraftCard => ({ player_reference_id: p.id, player: p, tier: tierName }));
 
   // Build initial pool
-  let pool: DraftCard[] = [
+  const pool: DraftCard[] = [
     ...pickFromTier(gold, 5, 'GOLD'),
     ...pickFromTier(silver, 5, 'SILVER'),
     ...pickFromTier(bronze, 5, 'BRONZE'),

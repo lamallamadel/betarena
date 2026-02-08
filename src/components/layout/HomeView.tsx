@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, Bell, Calendar, Star, ChevronDown, Coins, Eye, EyeOff, RefreshCcw, Loader2 } from 'lucide-react';
 import { MOCK_LEAGUES } from '../../data/mockData';
-import { MatchCard } from '../match/MatchCard';
+import { MatchCard } from '../../features/match/components';
 import { TeamLogo } from '../ui/TeamLogo';
 import { AvatarDisplay } from '../ui/AvatarDisplay';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -9,7 +9,7 @@ import { FavoriteButton } from '../ui/FavoriteButton';
 import { GuestWallModal } from '../auth/GuestWallModal';
 import { SearchOverlay } from '../search/SearchOverlay';
 import type { RichUserProfile } from '../../types/types';
-import { useMatchFeed } from '../../hooks/useMatchFeed';
+import { useMatchFeed } from '../../features/match/hooks/useMatchFeed';
 
 const DAY_LABELS_FR = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 

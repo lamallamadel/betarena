@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, where, limit, onSnapshot, addDoc, updateDoc, doc, setDoc, deleteDoc, serverTimestamp, increment, runTransaction } from 'firebase/firestore';
+import { collection, query, where, limit, onSnapshot, addDoc, doc, setDoc, deleteDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 import type { MessageType } from "../types/types.ts";
 

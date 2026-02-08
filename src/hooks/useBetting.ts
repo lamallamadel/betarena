@@ -213,7 +213,7 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
    */
   const estimatePariMutuelGain = (
     betAmount: number,
-    selection: string,
+    _selection: string,
     poolStats: {
       totalPool: number;
       betsOnSelection: number; // Montant total misé sur cette sélection

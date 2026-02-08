@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, setDoc } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -90,7 +90,6 @@ export const useFavorites = (): UseFavoritesReturn => {
         updateDoc(favRef, update).catch((err) => {
             // If doc doesn't exist yet, create it
             if (err.code === 'not-found') {
-                const { setDoc } = require('firebase/firestore');
                 setDoc(favRef, { teams: [], leagues: [], matches: [], [key]: [entityId] });
             }
         });

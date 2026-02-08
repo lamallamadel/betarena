@@ -1,5 +1,5 @@
 import React from 'react';
-import type {Match} from "../../types/types.ts";
+import type {Match} from "../../../types/types";
 
 interface MatchHeaderProps {
   match: Match;
