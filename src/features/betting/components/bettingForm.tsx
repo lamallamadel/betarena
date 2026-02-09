@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Coins } from 'lucide-react';
-import type {Match, PredictionType} from "../../types/types.ts";
+import type { Match } from '../../match';
+import type { PredictionType } from '../types';
 
 interface BettingFormProps {
   match: Match;
