@@ -47,3 +47,4 @@ ui-debug.log
 dump.rdb
 *.rdb
 redis.conf
+functions/.env
