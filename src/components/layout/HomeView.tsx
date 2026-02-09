@@ -8,8 +8,10 @@ import { ProgressBar } from '../ui/ProgressBar';
 import { FavoriteButton } from '../ui/FavoriteButton';
 import { GuestWallModal } from '../auth/GuestWallModal';
 import { SearchOverlay } from '../search/SearchOverlay';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import type { RichUserProfile } from '../../types/types';
 import { useMatchFeed } from '../../features/match/hooks/useMatchFeed';
+import { useSyncQueue } from '../../hooks/useSyncQueue';
 
 const DAY_LABELS_FR = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 
@@ -35,9 +37,10 @@ interface HomeViewProps {
     onNavigate: (view: string) => void;
     onMatchClick: (match: any) => void;
     toggleNotifications: () => void;
+    showToast?: (message: string, type?: 'success' | 'warning' | 'error' | 'info') => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchClick, toggleNotifications }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchClick, toggleNotifications, showToast }) => {
     const [selectedDate, setSelectedDate] = useState(0);
     const [syncing, setSyncing] = useState(false);
 
@@ -48,7 +51,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
     dateObj.setDate(dateObj.getDate() + selectedDate);
     const dateStr = dateObj.toISOString().split('T')[0];
 
-    const { matches, loading } = useMatchFeed(dateStr);
+    const { matches, loading, staleness } = useMatchFeed(dateStr);
+    const { apiHealth, queueJob, processQueue } = useSyncQueue(showToast);
 
     // No Spoiler Mode - persisté dans localStorage
     const [isSpoilerFree, setIsSpoilerFree] = useState(() => {
@@ -80,6 +84,13 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
 
     return (
         <div className="flex flex-col h-full overflow-y-auto">
+            {/* Offline/Staleness Banner */}
+            <OfflineBanner 
+                apiHealth={apiHealth}
+                staleness={staleness}
+                onRetry={() => processQueue()}
+            />
+            
             <header className="pt-12 pb-2 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-900">
                 {/* Top Bar */}
                 <div className="px-5 flex justify-between items-center mb-4">
@@ -116,6 +127,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ user, onNavigate, onMatchCli
                                     console.log('Sync result:', result.data);
                                 } catch (e) {
                                     console.error('Sync error', e);
+                                    // Queue the job for retry if it failed
+                                    await queueJob('FIXTURES', { date: dateStr });
                                 } finally {
                                     setSyncing(false);
                                 }

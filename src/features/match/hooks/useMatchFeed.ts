@@ -1,7 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, APP_ID } from '../../../config/firebase';
-import type { Match } from '../../../types/types';
+import type { Match, DataStaleness } from '../../../types/types';
+
+const calculateStaleness = (matches: Match[]): DataStaleness => {
+    if (matches.length === 0) {
+        return {
+            isFresh: true,
+            severity: 'ok',
+        };
+    }
+
+    // Find most recent update timestamp
+    const mostRecentUpdate = matches.reduce((latest, match) => {
+        const updateTime = match.updated_at?.toMillis?.() || 0;
+        return Math.max(latest, updateTime);
+    }, 0);
+
+    if (!mostRecentUpdate) {
+        return {
+            isFresh: false,
+            severity: 'critical',
+            message: 'Aucune donnée disponible',
+        };
+    }
+
+    const now = Date.now();
+    const minutesSinceUpdate = (now - mostRecentUpdate) / 60000;
+
+    // Check if there are live matches
+    const hasLiveMatches = matches.some(m => 
+        ['LIVE', 'LIVE_1ST_HALF', 'LIVE_2ND_HALF', 'HALF_TIME'].includes(m.status || '')
+    );
+
+    if (hasLiveMatches) {
+        // Live matches should update every 1-2 minutes
+        if (minutesSinceUpdate < 3) {
+            return { isFresh: true, severity: 'ok', lastUpdate: mostRecentUpdate };
+        } else if (minutesSinceUpdate < 5) {
+            return {
+                isFresh: false,
+                severity: 'warning',
+                lastUpdate: mostRecentUpdate,
+                minutesSinceUpdate,
+                message: 'Données en direct légèrement retardées',
+            };
+        } else if (minutesSinceUpdate < 15) {
+            return {
+                isFresh: false,
+                severity: 'stale',
+                lastUpdate: mostRecentUpdate,
+                minutesSinceUpdate,
+                message: 'Données en direct retardées',
+            };
+        } else {
+            return {
+                isFresh: false,
+                severity: 'critical',
+                lastUpdate: mostRecentUpdate,
+                minutesSinceUpdate,
+                message: 'Connexion API perdue - Affichage des dernières données',
+            };
+        }
+    } else {
+        // Pre-match or finished matches can be older
+        if (minutesSinceUpdate < 60) {
+            return { isFresh: true, severity: 'ok', lastUpdate: mostRecentUpdate };
+        } else if (minutesSinceUpdate < 180) {
+            return {
+                isFresh: false,
+                severity: 'warning',
+                lastUpdate: mostRecentUpdate,
+                minutesSinceUpdate,
+                message: 'Données partiellement à jour',
+            };
+        } else {
+            return {
+                isFresh: false,
+                severity: 'stale',
+                lastUpdate: mostRecentUpdate,
+                minutesSinceUpdate,
+                message: 'Données potentiellement obsolètes',
+            };
+        }
+    }
+};
 
 export const useMatchFeed = (dateStr: string) => {
     const [matches, setMatches] = useState<Match[]>([]);
@@ -38,5 +121,7 @@ export const useMatchFeed = (dateStr: string) => {
         return () => unsub();
     }, [dateStr]);
 
-    return { matches, loading };
+    const staleness = useMemo(() => calculateStaleness(matches), [matches]);
+
+    return { matches, loading, staleness };
 };

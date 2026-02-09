@@ -314,3 +314,52 @@ export interface UserActivitySnapshot {
   coinsSpent: number;
   lastActiveAt: number;
 }
+
+// ============================================
+// Offline Mode & Sync Queue System
+// ============================================
+
+export type SyncJobType = 
+  | 'FIXTURES' 
+  | 'LIVE_MATCH' 
+  | 'LIVE_ALL' 
+  | 'STANDINGS' 
+  | 'EVENTS' 
+  | 'LINEUPS' 
+  | 'ODDS';
+
+export type SyncJobStatus = 
+  | 'PENDING' 
+  | 'RETRYING' 
+  | 'FAILED' 
+  | 'COMPLETED';
+
+export interface SyncJob {
+  id: string;
+  type: SyncJobType;
+  status: SyncJobStatus;
+  params: Record<string, any>;
+  attempts: number;
+  maxAttempts: number;
+  lastAttempt?: number;
+  nextRetry?: number;
+  error?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ApiHealthStatus {
+  isOnline: boolean;
+  lastSuccessfulCall?: number;
+  consecutiveFailures: number;
+  lastError?: string;
+  estimatedRecoveryTime?: number;
+}
+
+export interface DataStaleness {
+  isFresh: boolean;
+  lastUpdate?: number;
+  minutesSinceUpdate?: number;
+  message?: string;
+  severity: 'ok' | 'warning' | 'stale' | 'critical';
+}

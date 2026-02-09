@@ -47,6 +47,7 @@ export interface Match {
   referee?: string;
   hadPenaltyShootout?: boolean;
   penaltyScore?: { h: number; a: number } | null;
+  updated_at?: any; // Firestore Timestamp
 }
 
 export interface MatchEvent {

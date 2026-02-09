@@ -32,6 +32,20 @@ service cloud.firestore {
       allow write: if false; // Only backend/Cloud Functions can write
     }
 
+    // Sync Queue - read/write for authenticated users (admin context), system can write
+    match /artifacts/{appId}/admin/sync_queue/{document=**} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // API Health Status - read for authenticated users, write for system only
+    match /artifacts/{appId}/admin/api_health/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
     // Temporary open access (TODO: Implement proper security rules)
     match /{document=**} {
       allow read, write: if

@@ -3,7 +3,7 @@ import {
     Users, TrendingUp, AlertTriangle, Trophy,
     ArrowUpRight, ArrowDownRight, Coins, MessageSquare,
     Activity, Database, Clock, TrendingDown, Zap, DollarSign,
-    Flag
+    Flag, Wifi
 } from 'lucide-react';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -12,6 +12,8 @@ import {
 } from 'recharts';
 import { useApiQuota } from '../../hooks/useAdmin';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
+import { SyncQueuePanel } from './SyncQueuePanel';
+import { useSyncQueue } from '../../hooks/useSyncQueue';
 
 const MOCK_KPIS = {
     dau: { value: 2847, change: 12.5, trend: 'up' as const },
@@ -68,7 +70,8 @@ const CHART_COLORS = {
 
 export const AdminDashboard: React.FC = () => {
     const { dailyStats, currentQuota, loading: quotaLoading } = useApiQuota();
-    const [activeTab, setActiveTab] = useState<'overview' | 'feature-flags'>('overview');
+    const { jobs, apiHealth, retryJob, clearCompleted, processQueue } = useSyncQueue();
+    const [activeTab, setActiveTab] = useState<'overview' | 'feature-flags' | 'sync-queue'>('overview');
 
     // Prepare chart data
     const usageChartData = dailyStats.map(stat => ({
@@ -126,6 +129,22 @@ export const AdminDashboard: React.FC = () => {
                     Vue d'ensemble
                 </button>
                 <button
+                    onClick={() => setActiveTab('sync-queue')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 relative ${
+                        activeTab === 'sync-queue'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                >
+                    <Wifi size={18} />
+                    File de sync
+                    {jobs.filter(j => j.status === 'FAILED').length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                            {jobs.filter(j => j.status === 'FAILED').length}
+                        </span>
+                    )}
+                </button>
+                <button
                     onClick={() => setActiveTab('feature-flags')}
                     className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
                         activeTab === 'feature-flags'
@@ -138,7 +157,15 @@ export const AdminDashboard: React.FC = () => {
                 </button>
             </div>
 
-            {activeTab === 'feature-flags' ? (
+            {activeTab === 'sync-queue' ? (
+                <SyncQueuePanel
+                    jobs={jobs}
+                    apiHealth={apiHealth}
+                    onRetryJob={retryJob}
+                    onClearCompleted={clearCompleted}
+                    onProcessQueue={processQueue}
+                />
+            ) : activeTab === 'feature-flags' ? (
                 <FeatureFlagsPanel />
             ) : (
                 <>

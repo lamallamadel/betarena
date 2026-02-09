@@ -40,6 +40,7 @@ export default function App() {
     const [showNotifOverlay, setShowNotifOverlay] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [showToast, setShowToast] = useState(false);
+    const [toastType, setToastType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedOdd, setSelectedOdd] = useState<{ label: string, val: number } | null>(null);
     const [betAmount, setBetAmount] = useState(100);
@@ -103,8 +104,9 @@ export default function App() {
         }
     };
 
-    const showToastMessage = (msg: string) => {
+    const showToastMessage = (msg: string, type: 'success' | 'warning' | 'error' | 'info' = 'success') => {
         setToastMessage(msg);
+        setToastType(type);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
     };
@@ -145,7 +147,7 @@ export default function App() {
                         onClose={() => setShowShareModal(false)}
                     />
                 )}
-                <ToastNotification message={toastMessage} show={showToast} />
+                <ToastNotification message={toastMessage} show={showToast} type={toastType} />
 
                 {/* MAIN CONTENT AREA */}
                 <main className="flex-1 overflow-hidden relative">
@@ -155,6 +157,7 @@ export default function App() {
                             onNavigate={handleNavigate}
                             onMatchClick={handleMatchClick}
                             toggleNotifications={() => setShowNotifOverlay(true)}
+                            showToast={showToastMessage}
                         />
                     )}
                     {currentView === 'SOCIAL' && <SocialView />}
@@ -220,7 +223,9 @@ export default function App() {
             .no-scrollbar::-webkit-scrollbar { display: none; }
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            @keyframes slide-down { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            .animate-slide-down { animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         `}} />
             </div>
         </div>

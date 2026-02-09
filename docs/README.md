@@ -26,6 +26,10 @@ Functional specifications (SFD) and technical documentation, mirrored from the [
 | Document | File |
 |---|---|
 | Architecture de Données & Schéma SQL (Master DDL) | [tech-architecture-donnees-sql.md](tech-architecture-donnees-sql.md) |
+| API Monitoring & Quota Management | [API_MONITORING.md](API_MONITORING.md) |
+| Feature Flags System | [FEATURE_FLAGS.md](FEATURE_FLAGS.md) |
+| Analytics System (Year 5) | [ANALYTICS.md](ANALYTICS.md) |
+| **Offline Mode & Graceful Degradation** | [OFFLINE_MODE.md](OFFLINE_MODE.md) |
 
 ## Legacy
 

@@ -240,6 +240,82 @@ async function logApiCall(
 }
 
 // ============================================
+// API HEALTH TRACKING
+// ============================================
+
+async function updateApiHealth(success: boolean, error?: string) {
+    try {
+        const healthRef = db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("api_health")
+            .collection("status").doc("current");
+
+        if (success) {
+            await healthRef.set({
+                isOnline: true,
+                lastSuccessfulCall: admin.firestore.FieldValue.serverTimestamp(),
+                consecutiveFailures: 0,
+            }, { merge: true });
+        } else {
+            const current = await healthRef.get();
+            const currentFailures = current.data()?.consecutiveFailures || 0;
+            const newFailures = currentFailures + 1;
+
+            // Exponential backoff calculation
+            const retryDelays = [30000, 60000, 300000, 900000]; // 30s, 1m, 5m, 15m
+            const retryDelay = retryDelays[Math.min(newFailures - 1, retryDelays.length - 1)];
+
+            await healthRef.set({
+                isOnline: newFailures < 3,
+                consecutiveFailures: newFailures,
+                lastError: error || 'Unknown error',
+                estimatedRecoveryTime: Date.now() + retryDelay,
+                lastFailure: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+    } catch (err) {
+        logger.error("Failed to update API health", { err });
+    }
+}
+
+// ============================================
+// SYNC JOB QUEUE HELPERS
+// ============================================
+
+/**
+ * Queue a failed sync job for retry.
+ */
+async function queueSyncJob(
+    type: 'FIXTURES' | 'LIVE_MATCH' | 'LIVE_ALL' | 'STANDINGS' | 'EVENTS' | 'LINEUPS' | 'ODDS',
+    params: Record<string, any>
+): Promise<void> {
+    try {
+        const jobId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const retryDelays = [30000, 60000, 300000, 900000]; // 30s, 1m, 5m, 15m
+
+        const job = {
+            id: jobId,
+            type,
+            status: 'PENDING',
+            params,
+            attempts: 0,
+            maxAttempts: 5,
+            nextRetry: Date.now() + retryDelays[0],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+
+        const jobRef = db.collection("artifacts").doc(APP_ID)
+            .collection("admin").doc("sync_queue")
+            .collection("jobs").doc(jobId);
+
+        await jobRef.set(job);
+        logger.info("Sync job queued for retry", { type, jobId });
+    } catch (err) {
+        logger.error("Failed to queue sync job", { type, err });
+    }
+}
+
+// ============================================
 // API FETCH HELPER (Direct, no cache)
 // ============================================
 
@@ -278,6 +354,7 @@ async function fetchFromApiDirect(endpoint: string): Promise<unknown[] | null> {
             
             // Log failed call
             await logApiCall(endpoint, false, responseTime, statusCode, errorMessage, quotaHeaders);
+            await updateApiHealth(false, errorMessage);
             
             throw new Error(errorMessage);
         }
@@ -290,6 +367,7 @@ async function fetchFromApiDirect(endpoint: string): Promise<unknown[] | null> {
             
             // Log failed call
             await logApiCall(endpoint, false, responseTime, statusCode, errorMessage, quotaHeaders);
+            await updateApiHealth(false, errorMessage);
             
             throw new Error(errorMessage);
         }
@@ -298,6 +376,7 @@ async function fetchFromApiDirect(endpoint: string): Promise<unknown[] | null> {
         
         // Log successful call
         await logApiCall(endpoint, true, responseTime, statusCode, undefined, quotaHeaders);
+        await updateApiHealth(true);
         
         return data.response;
     } catch (error) {
@@ -309,6 +388,7 @@ async function fetchFromApiDirect(endpoint: string): Promise<unknown[] | null> {
         // Log failed call if not already logged
         if (statusCode === undefined) {
             await logApiCall(endpoint, false, responseTime, undefined, errorMessage, quotaHeaders);
+            await updateApiHealth(false, errorMessage);
         }
         
         logger.error("API Fetch Error", { endpoint, error });
@@ -643,65 +723,73 @@ export const syncFixtures = onCall(async (request) => {
 
     const leagues = leagueIds || Object.keys(SUPPORTED_LEAGUES).map(Number);
     let totalCount = 0;
+    let hasErrors = false;
 
     for (const leagueId of leagues) {
-        // Try CURRENT_SEASON (2025) first with caching
-        let fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON);
+        try {
+            // Try CURRENT_SEASON (2025) first with caching
+            let fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON);
 
-        // Fallback: If no results, try previous season (2024)
-        // This handles cases where the API considers the current date part of the previous season
-        if (!fixtures || fixtures.length === 0) {
-            logger.info(`No fixtures found for league ${leagueId} in season ${CURRENT_SEASON}. Trying ${CURRENT_SEASON - 1}...`);
-            fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON - 1);
-        }
+            // Fallback: If no results, try previous season (2024)
+            // This handles cases where the API considers the current date part of the previous season
+            if (!fixtures || fixtures.length === 0) {
+                logger.info(`No fixtures found for league ${leagueId} in season ${CURRENT_SEASON}. Trying ${CURRENT_SEASON - 1}...`);
+                fixtures = await fetchFixturesCached(date, leagueId, CURRENT_SEASON - 1);
+            }
 
-        if (!fixtures || fixtures.length === 0) {
-            logger.info(`No fixtures found for league ${leagueId} on ${date} (tried seasons ${CURRENT_SEASON} and ${CURRENT_SEASON - 1}).`);
-            continue;
-        }
+            if (!fixtures || fixtures.length === 0) {
+                logger.info(`No fixtures found for league ${leagueId} on ${date} (tried seasons ${CURRENT_SEASON} and ${CURRENT_SEASON - 1}).`);
+                continue;
+            }
 
-        logger.info(`Found ${fixtures.length} fixtures for league ${leagueId} on ${date}.`);
+            logger.info(`Found ${fixtures.length} fixtures for league ${leagueId} on ${date}.`);
 
-        const batch = db.batch();
-        const fixtureIds: number[] = [];
+            const batch = db.batch();
+            const fixtureIds: number[] = [];
 
-        for (const f of fixtures as ApiFixture[]) {
-            const matchData = mapFixtureToMatch(f);
-            batch.set(getMatchRef(matchData.id), matchData, { merge: true });
-            fixtureIds.push(f.fixture.id);
-            totalCount++;
-        }
+            for (const f of fixtures as ApiFixture[]) {
+                const matchData = mapFixtureToMatch(f);
+                batch.set(getMatchRef(matchData.id), matchData, { merge: true });
+                fixtureIds.push(f.fixture.id);
+                totalCount++;
+            }
 
-        await batch.commit();
+            await batch.commit();
 
-        // Fetch odds for pre-match fixtures (bookmaker 8 = Bet365)
-        for (const fixtureId of fixtureIds) {
-            try {
-                const odds = await fetchOddsCached(fixtureId, 8) as ApiOddsResponse[] | null;
-                if (odds && odds.length > 0) {
-                    const matchWinner = odds[0].bookmakers?.[0]?.bets?.find(
-                        (b) => b.id === 1
-                    );
-                    if (matchWinner) {
-                        const oddsData: Record<string, number> = {};
-                        for (const v of matchWinner.values) {
-                            if (v.value === "Home") oddsData.h = parseFloat(v.odd);
-                            if (v.value === "Draw") oddsData.n = parseFloat(v.odd);
-                            if (v.value === "Away") oddsData.a = parseFloat(v.odd);
-                        }
-                        if (oddsData.h && oddsData.n && oddsData.a) {
-                            await getMatchRef(`api_${fixtureId}`).update({ odds: oddsData });
+            // Fetch odds for pre-match fixtures (bookmaker 8 = Bet365)
+            for (const fixtureId of fixtureIds) {
+                try {
+                    const odds = await fetchOddsCached(fixtureId, 8) as ApiOddsResponse[] | null;
+                    if (odds && odds.length > 0) {
+                        const matchWinner = odds[0].bookmakers?.[0]?.bets?.find(
+                            (b) => b.id === 1
+                        );
+                        if (matchWinner) {
+                            const oddsData: Record<string, number> = {};
+                            for (const v of matchWinner.values) {
+                                if (v.value === "Home") oddsData.h = parseFloat(v.odd);
+                                if (v.value === "Draw") oddsData.n = parseFloat(v.odd);
+                                if (v.value === "Away") oddsData.a = parseFloat(v.odd);
+                            }
+                            if (oddsData.h && oddsData.n && oddsData.a) {
+                                await getMatchRef(`api_${fixtureId}`).update({ odds: oddsData });
+                            }
                         }
                     }
+                } catch (err) {
+                    logger.warn(`Failed to fetch odds for fixture ${fixtureId}`, { err });
                 }
-            } catch (err) {
-                logger.warn(`Failed to fetch odds for fixture ${fixtureId}`, { err });
             }
+        } catch (error: any) {
+            hasErrors = true;
+            logger.error(`Error syncing fixtures for league ${leagueId}`, { error: error.message });
+            // Queue the failed sync job for retry
+            await queueSyncJob('FIXTURES', { date, leagueIds: [leagueId] });
         }
     }
 
-    logger.info("syncFixtures completed", { date, totalCount });
-    return { success: true, count: totalCount };
+    logger.info("syncFixtures completed", { date, totalCount, hasErrors });
+    return { success: !hasErrors, count: totalCount };
 });
 
 /**
@@ -715,51 +803,58 @@ export const syncLiveMatch = onCall(async (request) => {
 
     const matchDocId = `api_${apiId}`;
 
-    // 1. Fetch updated fixture data (score, status, minute) with caching
-    const fixtures = await fetchFixtureByIdCached(apiId) as ApiFixture[] | null;
-    if (fixtures && fixtures.length > 0) {
-        const matchData = mapFixtureToMatch(fixtures[0]);
-        await getMatchRef(matchDocId).set(matchData, { merge: true });
-    }
-
-    // Get home team ID for correct event team mapping
-    const matchDoc = await getMatchRef(matchDocId).get();
-    const homeTeamId = matchDoc.data()?.home_id;
-
-    if (!homeTeamId) {
-        throw new HttpsError("not-found", `Match ${matchDocId} not found or missing home_id`);
-    }
-
-    // 2. Fetch and sync events with caching
-    const events = await fetchEventsCached(apiId) as ApiEvent[] | null;
-    if (events && events.length > 0) {
-        const batch = db.batch();
-        events.forEach((e, index) => {
-            const eventData = mapEvent(e, apiId, homeTeamId, index);
-            batch.set(getEventRef(eventData.id), eventData, { merge: true });
-        });
-        await batch.commit();
-    }
-
-    // 3. Fetch and sync lineups with caching
-    const lineups = await fetchLineupsCached(apiId) as ApiLineup[] | null;
-    if (lineups && lineups.length >= 2) {
-        const homeLineup = lineups.find((l) => l.team.id === homeTeamId);
-        const awayLineup = lineups.find((l) => l.team.id !== homeTeamId);
-
-        if (homeLineup && awayLineup) {
-            await getMatchRef(matchDocId).update({
-                lineups: {
-                    confirmed: true,
-                    home: mapLineup(homeLineup, true),
-                    away: mapLineup(awayLineup, false),
-                },
-            });
+    try {
+        // 1. Fetch updated fixture data (score, status, minute) with caching
+        const fixtures = await fetchFixtureByIdCached(apiId) as ApiFixture[] | null;
+        if (fixtures && fixtures.length > 0) {
+            const matchData = mapFixtureToMatch(fixtures[0]);
+            await getMatchRef(matchDocId).set(matchData, { merge: true });
         }
-    }
 
-    logger.info("syncLiveMatch completed", { apiId, events: events?.length || 0 });
-    return { success: true, events: events?.length || 0 };
+        // Get home team ID for correct event team mapping
+        const matchDoc = await getMatchRef(matchDocId).get();
+        const homeTeamId = matchDoc.data()?.home_id;
+
+        if (!homeTeamId) {
+            throw new HttpsError("not-found", `Match ${matchDocId} not found or missing home_id`);
+        }
+
+        // 2. Fetch and sync events with caching
+        const events = await fetchEventsCached(apiId) as ApiEvent[] | null;
+        if (events && events.length > 0) {
+            const batch = db.batch();
+            events.forEach((e, index) => {
+                const eventData = mapEvent(e, apiId, homeTeamId, index);
+                batch.set(getEventRef(eventData.id), eventData, { merge: true });
+            });
+            await batch.commit();
+        }
+
+        // 3. Fetch and sync lineups with caching
+        const lineups = await fetchLineupsCached(apiId) as ApiLineup[] | null;
+        if (lineups && lineups.length >= 2) {
+            const homeLineup = lineups.find((l) => l.team.id === homeTeamId);
+            const awayLineup = lineups.find((l) => l.team.id !== homeTeamId);
+
+            if (homeLineup && awayLineup) {
+                await getMatchRef(matchDocId).update({
+                    lineups: {
+                        confirmed: true,
+                        home: mapLineup(homeLineup, true),
+                        away: mapLineup(awayLineup, false),
+                    },
+                });
+            }
+        }
+
+        logger.info("syncLiveMatch completed", { apiId, events: events?.length || 0 });
+        return { success: true, events: events?.length || 0 };
+    } catch (error: any) {
+        logger.error(`Error syncing live match ${apiId}`, { error: error.message });
+        // Queue the failed sync job for retry
+        await queueSyncJob('LIVE_MATCH', { apiId });
+        throw error;
+    }
 });
 
 /**
@@ -770,41 +865,49 @@ export const syncStandings = onCall(async (request) => {
 
     const { leagueId } = request.data as { leagueId?: number };
     const leagues = leagueId ? [leagueId] : Object.keys(SUPPORTED_LEAGUES).map(Number);
+    let hasErrors = false;
 
     for (const lid of leagues) {
-        const response = await fetchStandingsCached(lid, CURRENT_SEASON);
-        if (!response || response.length === 0) continue;
+        try {
+            const response = await fetchStandingsCached(lid, CURRENT_SEASON);
+            if (!response || response.length === 0) continue;
 
-        const standings = (response[0] as any)?.league?.standings?.[0] as ApiStanding[] | undefined;
-        if (!standings) continue;
+            const standings = (response[0] as any)?.league?.standings?.[0] as ApiStanding[] | undefined;
+            if (!standings) continue;
 
-        const mapped = standings.map((s) => ({
-            rank: s.rank,
-            team: s.team.name,
-            team_id: s.team.id,
-            team_logo: s.team.logo,
-            points: s.points,
-            played: s.all.played,
-            won: s.all.win,
-            drawn: s.all.draw,
-            lost: s.all.lose,
-            goals_for: s.all.goals.for,
-            goals_against: s.all.goals.against,
-            goal_diff: s.goalsDiff,
-            form: s.form,
-        }));
+            const mapped = standings.map((s) => ({
+                rank: s.rank,
+                team: s.team.name,
+                team_id: s.team.id,
+                team_logo: s.team.logo,
+                points: s.points,
+                played: s.all.played,
+                won: s.all.win,
+                drawn: s.all.draw,
+                lost: s.all.lose,
+                goals_for: s.all.goals.for,
+                goals_against: s.all.goals.against,
+                goal_diff: s.goalsDiff,
+                form: s.form,
+            }));
 
-        await getStandingsRef(lid).set({
-            league_id: lid,
-            league_name: SUPPORTED_LEAGUES[lid],
-            season: CURRENT_SEASON,
-            standings: mapped,
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        });
+            await getStandingsRef(lid).set({
+                league_id: lid,
+                league_name: SUPPORTED_LEAGUES[lid],
+                season: CURRENT_SEASON,
+                standings: mapped,
+                updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (error: any) {
+            hasErrors = true;
+            logger.error(`Error syncing standings for league ${lid}`, { error: error.message });
+            // Queue the failed sync job for retry
+            await queueSyncJob('STANDINGS', { leagueId: lid });
+        }
     }
 
-    logger.info("syncStandings completed", { leagues });
-    return { success: true };
+    logger.info("syncStandings completed", { leagues, hasErrors });
+    return { success: !hasErrors };
 });
 
 /**
@@ -814,32 +917,45 @@ export const syncStandings = onCall(async (request) => {
 export const syncAllLive = onCall(async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required");
 
-    const leagueIds = Object.keys(SUPPORTED_LEAGUES).join("-");
-    const fixtures = await fetchLiveMatchesCached(leagueIds) as ApiFixture[] | null;
+    try {
+        const leagueIds = Object.keys(SUPPORTED_LEAGUES).join("-");
+        const fixtures = await fetchLiveMatchesCached(leagueIds) as ApiFixture[] | null;
 
-    if (!fixtures || fixtures.length === 0) {
-        return { success: true, liveCount: 0 };
-    }
-
-    for (const f of fixtures) {
-        const matchData = mapFixtureToMatch(f);
-        await getMatchRef(matchData.id).set(matchData, { merge: true });
-
-        // Fetch events for each live match with caching
-        const homeTeamId = f.teams.home.id;
-        const events = await fetchEventsCached(f.fixture.id) as ApiEvent[] | null;
-        if (events && events.length > 0) {
-            const batch = db.batch();
-            events.forEach((e, index) => {
-                const eventData = mapEvent(e, f.fixture.id, homeTeamId, index);
-                batch.set(getEventRef(eventData.id), eventData, { merge: true });
-            });
-            await batch.commit();
+        if (!fixtures || fixtures.length === 0) {
+            return { success: true, liveCount: 0 };
         }
-    }
 
-    logger.info("syncAllLive completed", { liveCount: fixtures.length });
-    return { success: true, liveCount: fixtures.length };
+        for (const f of fixtures) {
+            try {
+                const matchData = mapFixtureToMatch(f);
+                await getMatchRef(matchData.id).set(matchData, { merge: true });
+
+                // Fetch events for each live match with caching
+                const homeTeamId = f.teams.home.id;
+                const events = await fetchEventsCached(f.fixture.id) as ApiEvent[] | null;
+                if (events && events.length > 0) {
+                    const batch = db.batch();
+                    events.forEach((e, index) => {
+                        const eventData = mapEvent(e, f.fixture.id, homeTeamId, index);
+                        batch.set(getEventRef(eventData.id), eventData, { merge: true });
+                    });
+                    await batch.commit();
+                }
+            } catch (error: any) {
+                logger.error(`Error syncing live match ${f.fixture.id}`, { error: error.message });
+                // Queue individual match for retry
+                await queueSyncJob('LIVE_MATCH', { apiId: f.fixture.id });
+            }
+        }
+
+        logger.info("syncAllLive completed", { liveCount: fixtures.length });
+        return { success: true, liveCount: fixtures.length };
+    } catch (error: any) {
+        logger.error("Error in syncAllLive", { error: error.message });
+        // Queue full sync for retry
+        await queueSyncJob('LIVE_ALL', {});
+        throw error;
+    }
 });
 
 /**
@@ -956,6 +1072,8 @@ export const scheduledFixtureSync = onSchedule(
                     }
                 } catch (err) {
                     logger.error("Scheduled fixture sync error", { date, leagueId, err });
+                    // Queue for retry
+                    await queueSyncJob('FIXTURES', { date, leagueIds: [leagueId] });
                 }
             }
         }
@@ -993,6 +1111,8 @@ export const scheduledFixtureSync = onSchedule(
                 }
             } catch (err) {
                 logger.error("Standings sync error", { leagueId, err });
+                // Queue for retry
+                await queueSyncJob('STANDINGS', { leagueId });
             }
         }
 
