@@ -39,6 +39,9 @@ export { rewardShare } from "./social";
 // Export Marketplace (Module L) functions
 export { buyMarketListing, listCard, cancelListing, buyPack } from "./marketplace";
 
+// Export Marketplace Error Tracking functions
+export { getMarketplaceErrorStats } from "./errorTracking";
+
 // Export Sports API functions
 export { syncFixtures, syncLiveMatch, syncStandings, syncAllLive, scheduledFixtureSync, getApiQuotaStats } from "./sportsapi";
 

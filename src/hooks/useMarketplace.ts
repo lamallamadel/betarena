@@ -9,6 +9,11 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, APP_ID } from '../config/firebase';
+import {
+  withErrorTracking,
+  formatErrorMessage,
+  MarketplaceOperation,
+} from '../utils/errorTracking';
 import type { Card, Pack, MarketListing, PriceHistory, CardScarcity, PlayerPosition } from '../types/types';
 
 interface MarketplaceFilters {
@@ -92,39 +97,63 @@ export const useMarketplace = (userId: string | undefined) => {
     return () => unsub();
   }, [fetchListings]);
 
-  // --- Actions ---
+  // --- Actions with Error Tracking ---
   const functions = getFunctions();
 
   const buyPack = async (packId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
-    const buyPackFn = httpsCallable(functions, 'buyPack');
+
     try {
-      await buyPackFn({ packId });
+      await withErrorTracking(
+        MarketplaceOperation.BUY_PACK,
+        userId,
+        async () => {
+          const buyPackFn = httpsCallable(functions, 'buyPack');
+          await buyPackFn({ packId });
+        },
+        { packId }
+      );
     } catch (err: any) {
-      console.error('Erreur achat pack:', err);
-      throw new Error(err.message || 'Échec de l\'achat');
+      const userMessage = formatErrorMessage(err);
+      throw new Error(userMessage);
     }
   };
 
   const listCard = async (cardId: string, price: number): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
-    const listCardFn = httpsCallable(functions, 'listCard');
+
     try {
-      await listCardFn({ cardId, price });
+      await withErrorTracking(
+        MarketplaceOperation.LIST_CARD,
+        userId,
+        async () => {
+          const listCardFn = httpsCallable(functions, 'listCard');
+          await listCardFn({ cardId, price });
+        },
+        { cardId, price }
+      );
     } catch (err: any) {
-      console.error('Erreur mise en vente:', err);
-      throw new Error(err.message || 'Échec de la mise en vente');
+      const userMessage = formatErrorMessage(err);
+      throw new Error(userMessage);
     }
   };
 
   const cancelListing = async (listingId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
-    const cancelListingFn = httpsCallable(functions, 'cancelListing');
+
     try {
-      await cancelListingFn({ listingId });
+      await withErrorTracking(
+        MarketplaceOperation.CANCEL_LISTING,
+        userId,
+        async () => {
+          const cancelListingFn = httpsCallable(functions, 'cancelListing');
+          await cancelListingFn({ listingId });
+        },
+        { listingId }
+      );
     } catch (err: any) {
-      console.error('Erreur annulation vente:', err);
-      throw new Error(err.message || 'Échec de l\'annulation');
+      const userMessage = formatErrorMessage(err);
+      throw new Error(userMessage);
     }
   };
 
@@ -134,14 +163,19 @@ export const useMarketplace = (userId: string | undefined) => {
   const buyListing = async (listingId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
 
-    const functions = getFunctions();
-    const buyListingFn = httpsCallable(functions, 'buyMarketListing');
-
     try {
-      await buyListingFn({ listingId });
+      await withErrorTracking(
+        MarketplaceOperation.BUY_MARKET_LISTING,
+        userId,
+        async () => {
+          const buyListingFn = httpsCallable(functions, 'buyMarketListing');
+          await buyListingFn({ listingId });
+        },
+        { listingId }
+      );
     } catch (err: any) {
-      console.error('Erreur achat marché:', err);
-      throw new Error(err.message || 'Échec de l\'achat');
+      const userMessage = formatErrorMessage(err);
+      throw new Error(userMessage);
     }
   };
 

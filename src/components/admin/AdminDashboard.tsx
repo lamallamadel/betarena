@@ -13,6 +13,7 @@ import {
 import { useApiQuota } from '../../hooks/useAdmin';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { SyncQueuePanel } from './SyncQueuePanel';
+import { MarketplaceErrorMonitor } from './MarketplaceErrorMonitor';
 import { useSyncQueue } from '../../hooks/useSyncQueue';
 
 const MOCK_KPIS = {
@@ -71,7 +72,7 @@ const CHART_COLORS = {
 export const AdminDashboard: React.FC = () => {
     const { dailyStats, currentQuota, loading: quotaLoading } = useApiQuota();
     const { jobs, apiHealth, retryJob, clearCompleted, processQueue } = useSyncQueue();
-    const [activeTab, setActiveTab] = useState<'overview' | 'feature-flags' | 'sync-queue'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'feature-flags' | 'sync-queue' | 'marketplace-errors'>('overview');
 
     // Prepare chart data
     const usageChartData = dailyStats.map(stat => ({
@@ -155,6 +156,17 @@ export const AdminDashboard: React.FC = () => {
                     <Flag size={18} />
                     Feature Flags
                 </button>
+                <button
+                    onClick={() => setActiveTab('marketplace-errors')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                        activeTab === 'marketplace-errors'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                >
+                    <AlertTriangle size={18} />
+                    Erreurs Marketplace
+                </button>
             </div>
 
             {activeTab === 'sync-queue' ? (
@@ -167,6 +179,8 @@ export const AdminDashboard: React.FC = () => {
                 />
             ) : activeTab === 'feature-flags' ? (
                 <FeatureFlagsPanel />
+            ) : activeTab === 'marketplace-errors' ? (
+                <MarketplaceErrorMonitor />
             ) : (
                 <>
                     {/* KPI Grid */}

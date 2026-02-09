@@ -46,6 +46,32 @@ service cloud.firestore {
       allow write: if false; // Only Cloud Functions can write
     }
 
+    // Marketplace Error Monitoring - read for authenticated admins, write for system only
+    match /artifacts/{appId}/monitoring/marketplace_errors/errors/{errorId} {
+      allow read: if request.auth != null; // TODO: Add admin role check
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    match /artifacts/{appId}/monitoring/marketplace_errors/rollbacks/{rollbackId} {
+      allow read: if request.auth != null; // TODO: Add admin role check
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    match /artifacts/{appId}/monitoring/marketplace_errors/duplicate_attempts/{attemptId} {
+      allow read: if request.auth != null; // TODO: Add admin role check
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    match /artifacts/{appId}/monitoring/marketplace_errors/alerts/{alertId} {
+      allow read: if request.auth != null; // TODO: Add admin role check
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    match /artifacts/{appId}/monitoring/marketplace_errors/counters/{functionName} {
+      allow read: if request.auth != null; // TODO: Add admin role check
+      allow write: if false; // Only Cloud Functions can write
+    }
+
     // Temporary open access (TODO: Implement proper security rules)
     match /{document=**} {
       allow read, write: if
