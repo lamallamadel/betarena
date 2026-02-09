@@ -1,7 +1,7 @@
 {
   "main": "lib/index.js",
   "scripts": {
-    "lint": "eslint src",
+    "lint": "set ESLINT_USE_FLAT_CONFIG=false&& eslint src",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions --project crossteamz",
