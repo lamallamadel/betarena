@@ -37,7 +37,7 @@ export interface UserProfile {
 
 export interface Prediction {
   id: number | string;
-  match: string;
+  matchId: string;
   type: PredictionType;
   selection: string;
   odd: number;
@@ -46,9 +46,11 @@ export interface Prediction {
   status: PredictionStatus;
   is_settled: boolean;
   settled_at: string | null;
+  timestamp: number;
   match_final_score: string | null;
   match_had_extra_time: boolean;
   match_had_penalty_shootout: boolean;
+  potentialGain?: number;
 }
 
 export interface RichUserProfile {
@@ -320,19 +322,19 @@ export interface UserActivitySnapshot {
 // Offline Mode & Sync Queue System
 // ============================================
 
-export type SyncJobType = 
-  | 'FIXTURES' 
-  | 'LIVE_MATCH' 
-  | 'LIVE_ALL' 
-  | 'STANDINGS' 
-  | 'EVENTS' 
-  | 'LINEUPS' 
+export type SyncJobType =
+  | 'FIXTURES'
+  | 'LIVE_MATCH'
+  | 'LIVE_ALL'
+  | 'STANDINGS'
+  | 'EVENTS'
+  | 'LINEUPS'
   | 'ODDS';
 
-export type SyncJobStatus = 
-  | 'PENDING' 
-  | 'RETRYING' 
-  | 'FAILED' 
+export type SyncJobStatus =
+  | 'PENDING'
+  | 'RETRYING'
+  | 'FAILED'
   | 'COMPLETED';
 
 export interface SyncJob {

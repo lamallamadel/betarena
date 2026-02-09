@@ -60,6 +60,7 @@ export const useFantasyTeam = (userId: string | undefined) => {
 
   // Charger le lineup de l'utilisateur pour la journee en cours
   useEffect(() => {
+    let active = true;
     if (!userId || !currentGameweek) {
       setMyLineup(null);
       setLineupPlayers([]);
@@ -77,6 +78,7 @@ export const useFantasyTeam = (userId: string | undefined) => {
     );
 
     const unsubLineup = onSnapshot(lineupRef, (docSnap) => {
+      if (!active) return;
       if (docSnap.exists()) {
         setMyLineup({ id: docSnap.id, ...docSnap.data() } as Lineup);
       } else {
@@ -97,6 +99,7 @@ export const useFantasyTeam = (userId: string | undefined) => {
     );
 
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
+      if (!active) return;
       const players: LineupPlayer[] = [];
       snapshot.forEach((docSnap) => {
         players.push(docSnap.data() as LineupPlayer);
@@ -105,6 +108,7 @@ export const useFantasyTeam = (userId: string | undefined) => {
     });
 
     return () => {
+      active = false;
       unsubLineup();
       unsubPlayers();
     };

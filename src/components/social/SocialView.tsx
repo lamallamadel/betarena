@@ -32,9 +32,16 @@ export const SocialView: React.FC = () => {
         }
     };
 
+    // For relative time updates
+    const [now, setNow] = useState(Date.now());
+    React.useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Format timestamp to relative time
     const formatTime = (timestamp: number) => {
-        const diff = Date.now() - timestamp;
+        const diff = now - timestamp;
         const minutes = Math.floor(diff / 60000);
         if (minutes < 1) return "à l'instant";
         if (minutes < 60) return `il y a ${minutes}min`;

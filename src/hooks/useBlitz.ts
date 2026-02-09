@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { doc, collection, onSnapshot, runTransaction, query, where, orderBy, limit } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
 import type { BlitzTournament, BlitzEntry, DraftCard, PlayerReference, DraftCardTier, PlayerPosition } from '../types/types';
@@ -108,8 +108,8 @@ export const useBlitz = (userId: string | undefined) => {
   }, []);
 
   // Fetch user's current entry
-  const fetchMyEntry = (tournamentId: string) => {
-    if (!userId) return () => {};
+  const fetchMyEntry = useCallback((tournamentId: string) => {
+    if (!userId) return () => { };
     const ref = doc(db, 'artifacts', APP_ID, 'users', userId, 'blitz_entries', tournamentId);
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
@@ -119,10 +119,10 @@ export const useBlitz = (userId: string | undefined) => {
       }
     });
     return unsub;
-  };
+  }, [userId]);
 
   // Fetch leaderboard for a tournament
-  const fetchLeaderboard = (tournamentId: string) => {
+  const fetchLeaderboard = useCallback((tournamentId: string) => {
     const q = query(
       collection(db, 'artifacts', APP_ID, 'public', 'data', 'blitz_tournaments', tournamentId, 'leaderboard'),
       orderBy('total_score', 'desc'),
@@ -132,10 +132,10 @@ export const useBlitz = (userId: string | undefined) => {
       setLeaderboard(snap.docs.map((d) => ({ id: d.id, ...d.data() } as BlitzEntry)));
     });
     return unsub;
-  };
+  }, []);
 
   // Join tournament (RG-N03: rake on entry fee)
-  const joinTournament = async (tournamentId: string) => {
+  const joinTournament = useCallback(async (tournamentId: string) => {
     if (!userId) throw new Error("Non connecté");
 
     const tournamentRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'blitz_tournaments', tournamentId);
@@ -180,10 +180,10 @@ export const useBlitz = (userId: string | undefined) => {
         created_at: Date.now(),
       });
     });
-  };
+  }, [userId]);
 
   // Submit lineup (RG-N04: validate 1-1-2-1 formation)
-  const submitLineup = async (tournamentId: string, selectedPlayerRefIds: string[]) => {
+  const submitLineup = useCallback(async (tournamentId: string, selectedPlayerRefIds: string[]) => {
     if (!userId) throw new Error("Non connecté");
     if (selectedPlayerRefIds.length !== 5) throw new Error("Sélectionnez exactement 5 joueurs");
 
@@ -217,7 +217,7 @@ export const useBlitz = (userId: string | undefined) => {
         created_at: Date.now(),
       });
     });
-  };
+  }, [userId]);
 
   return {
     tournaments,

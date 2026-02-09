@@ -23,12 +23,13 @@ export const BlitzView: React.FC<BlitzViewProps> = ({ user, onNavigate }) => {
     if (!activeTournament) return;
     const unsub = fetchMyEntry(activeTournament.id);
     return () => unsub();
-  }, [activeTournament?.id]);
+  }, [activeTournament?.id, fetchMyEntry]);
 
   // Show draft screen if entry exists and has no lineup
   useEffect(() => {
     if (myEntry && myEntry.draft_pool.length > 0 && myEntry.selected_lineup.length === 0) {
-      setShowDraft(true);
+      const timer = setTimeout(() => setShowDraft(true), 0);
+      return () => clearTimeout(timer);
     }
   }, [myEntry]);
 

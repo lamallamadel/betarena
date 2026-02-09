@@ -11,20 +11,20 @@ import { useMatchLive } from '../hooks/useMatchLive';
 import { TimelineEvent } from './TimelineEvent';
 import { MatchSimulator } from '../../../utils/matchSimulator';
 import { ShareModal } from '../../../components/social/ShareModal';
-import type { RichUserProfile } from '../../../types/types';
+import type { RichUserProfile, Prediction } from '../../../types/types';
 import type { Match } from '../types';
 
 interface MatchCenterViewProps {
     match: Match; 
     user: RichUserProfile;
     onNavigate: (view: string) => void;
-    onPlaceBet: (type: '1N2' | 'EXACT_SCORE', selection: any, amount: number, odd?: { label: string, val: number } | null) => void;
+    onPlaceBet: (type: '1N2' | 'EXACT_SCORE', selection: string, amount: number, odd?: { label: string, val: number } | null) => void;
     // SFD RG-A01/A02: Lock states
     is1N2Locked?: boolean;
     isScoreLocked?: boolean;
     // SFD: Existing bet for "Update" button
-    existingBet1N2?: any;
-    existingBetScore?: any;
+    existingBet1N2?: Prediction;
+    existingBetScore?: Prediction;
     // SFD Phase 4: Pari Mutuel mode
     isPariMutuel?: boolean;
     poolStats?: {
@@ -119,13 +119,13 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     // Helper to format minute to MM:SS (Simulated for this demo, usually backend provides specific time)
     // In a real scenario, we might have a `startTime` timestamp and calculate diff.
     // For this prototype using `minute` integer:
-    const formatMatchTime = (min: any) => {
+    const formatMatchTime = (min: number | string) => {
         if (!min && min !== 0) return "--:--";
         if (typeof min === 'string' && min.includes(':')) return min; // Already formatted
         return `${min}:00`; // Simple XX:00 for integer minutes
     };
 
-    const extractTime = (timeStr: any) => {
+    const extractTime = (timeStr: string | number) => {
         if (!timeStr) return "À VENIR";
         // If it looks like "20:00", return it. If it's a date object, format it.
         return timeStr.toString().replace('LIVE ', ''); // Cleanup
@@ -135,7 +135,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
     // Calculate Active Bet for Share Modal
     const activeBet = existingBet1N2 || existingBetScore ? {
         potentialGain: existingBet1N2
-            ? Math.floor(existingBet1N2.amount * existingBet1N2.oddVal)
+            ? Math.floor(existingBet1N2.amount * (existingBet1N2.odd || 0))
             : existingBetScore
                 ? (isPariMutuel ? 'Variable' : Math.floor(existingBetScore.amount * 3.5))
                 : 0
@@ -289,7 +289,7 @@ export const MatchCenterView: React.FC<MatchCenterViewProps> = ({
                                     <div>
                                         <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 px-2">Onze de Départ ({match.lineups[activeLineupTeam].formation})</h4>
                                         <div className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden">
-                                            {match.lineups[activeLineupTeam].starters.map((p: any, i: number) => (
+                                            {match.lineups[activeLineupTeam].starters.map((p, i: number) => (
                                                 <div key={i} className="flex items-center justify-between p-4 border-b border-slate-800/50 last:border-0">
                                                     <div className="flex items-center gap-3">
                                                         <span className="w-5 text-[10px] font-black text-slate-600">{p.num}</span>

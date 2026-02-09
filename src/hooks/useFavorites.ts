@@ -32,6 +32,7 @@ export const useFavorites = (): UseFavoritesReturn => {
 
     // Listen to Firestore favorites in real-time
     useEffect(() => {
+        let active = true;
         if (!user?.uid) {
             setFavorites({ teams: [], leagues: [], matches: [] });
             return;
@@ -39,6 +40,7 @@ export const useFavorites = (): UseFavoritesReturn => {
 
         const favRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'data', 'favorites');
         const unsub = onSnapshot(favRef, (snap) => {
+            if (!active) return;
             if (snap.exists()) {
                 const data = snap.data();
                 setFavorites({
@@ -51,7 +53,7 @@ export const useFavorites = (): UseFavoritesReturn => {
             }
         });
 
-        return () => unsub();
+        return () => { active = false; unsub(); };
     }, [user?.uid]);
 
     const getKey = (entityType: FavoriteEntityType): 'teams' | 'leagues' | 'matches' => {
@@ -70,8 +72,9 @@ export const useFavorites = (): UseFavoritesReturn => {
             return false; // Guest wall
         }
 
+        const userId = user.uid;
         const key = getKey(entityType);
-        const favRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'data', 'favorites');
+        const favRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'data', 'favorites');
         const isCurrentlyFav = favorites[key].includes(entityId);
 
         // Optimistic update
@@ -95,7 +98,7 @@ export const useFavorites = (): UseFavoritesReturn => {
         });
 
         return true;
-    }, [user?.uid, favorites]);
+    }, [user, favorites]);
 
     // Get total favorite count
     const getFavoriteCount = useCallback((): number => {

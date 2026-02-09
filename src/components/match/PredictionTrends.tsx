@@ -2,7 +2,7 @@ import React from 'react';
 import { MOCK_PREDICTION_STATS } from '../../data/mockData';
 
 interface PredictionTrendsProps {
-    matchId: number;
+    matchId: number | string;
 }
 
 export const PredictionTrends: React.FC<PredictionTrendsProps> = ({ matchId }) => {

@@ -28,9 +28,15 @@ export const AdminUserManagement: React.FC = () => {
 
   // Load admin list on mount
   useEffect(() => {
+    let active = true;
     if (isAdmin) {
-      loadAdmins();
+      const fetch = async () => {
+        if (!active) return;
+        await loadAdmins();
+      };
+      fetch();
     }
+    return () => { active = false; };
   }, [isAdmin, loadAdmins]);
 
   const handleGrantAdmin = async () => {

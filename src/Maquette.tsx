@@ -1,8 +1,7 @@
-// @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Trophy, Layout, MessageSquare, User, Search, Star,
-    ChevronRight, TrendingUp, Timer, Coins, ChevronLeft,
+    Trophy, Layout, MessageSquare, User, Star,
+    ChevronRight, TrendingUp, Coins, ChevronLeft,
     Calendar, Share2, XCircle, Clock, Activity,
     Award, Users, Send, ShieldCheck, Instagram,
     Flame, ShoppingBag, Lock,
@@ -274,6 +273,8 @@ const App = () => {
     const [selectedOdd, setSelectedOdd] = useState(null);
     const [chatMsg, setChatMsg] = useState('');
 
+    const nextBetId = useRef(Date.now());
+
     // State spécifique pour la compo
     const [activeLineupTeam, setActiveLineupTeam] = useState('home');
 
@@ -360,7 +361,7 @@ const App = () => {
             : `${scoreHome}-${scoreAway}`;
 
         const newBet = {
-            id: Date.now(),
+            id: ++nextBetId.current,
             match: `${match.home} vs ${match.away}`,
             type: pronoType,
             selection: selection,

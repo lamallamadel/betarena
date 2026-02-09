@@ -31,6 +31,7 @@ export const useMarketplace = (userId: string | undefined) => {
   // --- Listeners ---
 
   useEffect(() => {
+    let active = true;
     if (!userId) {
       setMyCards([]);
       return;
@@ -38,6 +39,7 @@ export const useMarketplace = (userId: string | undefined) => {
 
     const cardsRef = collection(db, 'artifacts', APP_ID, 'users', userId, 'cards');
     const unsub = onSnapshot(cardsRef, (snapshot) => {
+      if (!active) return;
       const cards: Card[] = [];
       snapshot.forEach((docSnap) => {
         cards.push({ id: docSnap.id, ...docSnap.data() } as Card);
@@ -45,26 +47,30 @@ export const useMarketplace = (userId: string | undefined) => {
       setMyCards(cards);
       setLoading(false);
     }, (error) => {
+      if (!active) return;
       console.error('Erreur chargement cartes:', error);
       setLoading(false);
     });
 
-    return () => unsub();
+    return () => { active = false; unsub(); };
   }, [userId]);
 
   useEffect(() => {
+    let active = true;
     const packsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'packs');
     const unsub = onSnapshot(packsRef, (snapshot) => {
+      if (!active) return;
       const packList: Pack[] = [];
       snapshot.forEach((docSnap) => {
         packList.push({ id: docSnap.id, ...docSnap.data() } as Pack);
       });
       setPacks(packList);
     }, (error) => {
+      if (!active) return;
       console.error('Erreur chargement packs:', error);
     });
 
-    return () => unsub();
+    return () => { active = false; unsub(); };
   }, []);
 
   const fetchListings = useCallback((filters?: MarketplaceFilters) => {
@@ -100,7 +106,7 @@ export const useMarketplace = (userId: string | undefined) => {
   // --- Actions with Error Tracking ---
   const functions = getFunctions();
 
-  const buyPack = async (packId: string): Promise<void> => {
+  const buyPack = useCallback(async (packId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
 
     try {
@@ -117,9 +123,9 @@ export const useMarketplace = (userId: string | undefined) => {
       const userMessage = formatErrorMessage(err);
       throw new Error(userMessage);
     }
-  };
+  }, [userId, functions]);
 
-  const listCard = async (cardId: string, price: number): Promise<void> => {
+  const listCard = useCallback(async (cardId: string, price: number): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
 
     try {
@@ -136,9 +142,9 @@ export const useMarketplace = (userId: string | undefined) => {
       const userMessage = formatErrorMessage(err);
       throw new Error(userMessage);
     }
-  };
+  }, [userId, functions]);
 
-  const cancelListing = async (listingId: string): Promise<void> => {
+  const cancelListing = useCallback(async (listingId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
 
     try {
@@ -155,12 +161,12 @@ export const useMarketplace = (userId: string | undefined) => {
       const userMessage = formatErrorMessage(err);
       throw new Error(userMessage);
     }
-  };
+  }, [userId, functions]);
 
   /**
    * buyListing : Acheter une carte sur le marché P2P via Cloud Function (Rec 3)
    */
-  const buyListing = async (listingId: string): Promise<void> => {
+  const buyListing = useCallback(async (listingId: string): Promise<void> => {
     if (!userId) throw new Error('Non connecté');
 
     try {
@@ -177,9 +183,9 @@ export const useMarketplace = (userId: string | undefined) => {
       const userMessage = formatErrorMessage(err);
       throw new Error(userMessage);
     }
-  };
+  }, [userId, functions]);
 
-  const fetchPriceHistory = async (playerRefId: string): Promise<void> => {
+  const fetchPriceHistory = useCallback(async (playerRefId: string): Promise<void> => {
     try {
       const entriesRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'price_history', playerRefId, 'entries');
       const q = query(entriesRef, orderBy('date', 'asc'));
@@ -193,7 +199,7 @@ export const useMarketplace = (userId: string | undefined) => {
       console.error('Erreur chargement historique prix:', error);
       setPriceHistory([]);
     }
-  };
+  }, []);
 
   return {
     myCards,

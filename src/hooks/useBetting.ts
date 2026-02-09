@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { doc, runTransaction, collection, onSnapshot, setDoc, getDocs, query, where } from 'firebase/firestore';
 import { db, APP_ID } from '../config/firebase';
-import type { MatchStatus, PredictionType, ChampionVarianceData } from "../types/types";
+import type { MatchStatus, PredictionType, ChampionVarianceData, Prediction } from "../types/types";
 
 // RG-A03 & RG-B02 : Coûts et gains (Mode Forfait pour l'instant)
 const RULES = {
@@ -14,8 +14,8 @@ const RULES = {
 };
 
 export const useBetting = (userId: string | undefined, matchId: string | undefined, matchStatus: MatchStatus | undefined) => {
-  const [predictions, setPredictions] = useState<Record<string, any>>({});
-  const [history, setHistory] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
+  const [history, setHistory] = useState<Prediction[]>([]);
 
   // Helpers pour RG-A01 et RG-A02
   // RG-A01: Verrouillage 1N2 à la seconde du coup d'envoi
@@ -49,10 +49,10 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
     if (!userId || !matchId) return;
     const q = collection(db, 'artifacts', APP_ID, 'users', userId, 'predictions');
     const unsub = onSnapshot(q, (snapshot) => {
-      const active: Record<string, any> = {};
-      const hist: any[] = [];
+      const active: Record<string, Prediction> = {};
+      const hist: Prediction[] = [];
       snapshot.forEach((docSnap) => {
-        const data = { id: docSnap.id, ...docSnap.data() } as any;
+        const data = { id: docSnap.id, ...docSnap.data() } as Prediction;
         if (data.status === 'PENDING' && data.matchId === matchId) {
           active[data.type as string] = data;
         }
@@ -296,7 +296,7 @@ export const useBetting = (userId: string | undefined, matchId: string | undefin
 
   // Helper pour vérifier si un pari existe déjà pour ce match/type
   const getExistingBet = (type: PredictionType) => {
-    return predictions[type] || null;
+    return predictions[type] || undefined;
   };
 
   // ============================================

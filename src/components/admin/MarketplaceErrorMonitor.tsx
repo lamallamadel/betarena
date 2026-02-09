@@ -23,7 +23,7 @@ export const MarketplaceErrorMonitor: React.FC = () => {
   const [timeRange, setTimeRange] = useState(24);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  const fetchStats = async () => {
+  const fetchStats = React.useCallback(async () => {
     setLoading(true);
     const newStats: Record<string, ErrorStats> = {};
 
@@ -46,11 +46,16 @@ export const MarketplaceErrorMonitor: React.FC = () => {
     setStats(newStats);
     setLoading(false);
     setLastRefresh(new Date());
-  };
+  }, [timeRange]);
 
   useEffect(() => {
-    fetchStats();
-  }, [timeRange]);
+    let active = true;
+    const fetch = async () => {
+      if (active) await fetchStats();
+    };
+    fetch();
+    return () => { active = false; };
+  }, [fetchStats]);
 
   const getTotalErrors = () => {
     return Object.values(stats).reduce((sum, s) => sum + s.totalErrors, 0);

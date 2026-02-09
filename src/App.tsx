@@ -30,13 +30,13 @@ import { NotificationsOverlay } from './components/ui/NotificationsOverlay';
 import { MaintenanceMode } from './components/ui/MaintenanceMode';
 
 // Types
-import type { RichUserProfile } from './types/types';
+import type { RichUserProfile, Match, PredictionType, Prediction } from './types/types';
 
 export default function App() {
     const { user: authUser, profile, loading, isOnboarding } = useAuth();
     const { canAccessDuringMaintenance, isMaintenanceMode, getMaintenanceMessage, isDebugMode } = useFeatureFlags();
     const [currentView, setCurrentView] = useState('HOME');
-    const [selectedMatch, setSelectedMatch] = useState<any>(null);
+    const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
     const [showNotifOverlay, setShowNotifOverlay] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [showToast, setShowToast] = useState(false);
@@ -76,12 +76,12 @@ export default function App() {
         setCurrentView(view);
     };
 
-    const handleMatchClick = (matchData: any) => {
+    const handleMatchClick = (matchData: Match) => {
         setSelectedMatch(matchData);
         setCurrentView('MATCH');
     };
 
-    const handlePlaceBet = async (type: '1N2' | 'EXACT_SCORE', selection: any, amount: number) => {
+    const handlePlaceBet = async (type: PredictionType, selection: string, amount: number) => {
         try {
             await placeBet(type, selection, amount); // Note: useBetting placeBet refactoring might be needed if arguments differ
             // For now assuming useBetting's placeBet matches or we wrap it.
@@ -90,17 +90,19 @@ export default function App() {
             // We might need to overload or adjust.
             // For the migration demo, we'll try to call it.
             showToastMessage('Pari validé avec succès !');
-        } catch (e: any) {
-            showToastMessage('Erreur : ' + e.message);
+        } catch (e) {
+            const err = e as Error;
+            showToastMessage('Erreur : ' + err.message);
         }
     };
 
-    const handleBuyItem = async (item: any) => {
+    const handleBuyItem = async (item: { id: string, name: string, price: number }) => {
         try {
             await buyItem(item.price, item.id);
             showToastMessage(`Achat réussi : ${item.name}`);
-        } catch (e: any) {
-            showToastMessage(e.message);
+        } catch (e) {
+            const err = e as Error;
+            showToastMessage(err.message);
         }
     };
 
