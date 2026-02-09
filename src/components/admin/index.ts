@@ -7,3 +7,4 @@ export { AdminApp } from './AdminApp';
 export { FeatureFlagsPanel } from './FeatureFlagsPanel';
 export { AnalyticsPanel } from './AnalyticsPanel';
 export { MarketplaceErrorMonitor } from './MarketplaceErrorMonitor';
+export { AdminUserManagement } from './AdminUserManagement';

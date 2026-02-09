@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
+import { getFunctions } from "firebase/functions";
 
 // Runtime validation of environment variables
 function validateEnvVar(name: string, value: string | undefined): string {
@@ -32,6 +33,7 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const analytics = getAnalytics(app);
+export const functions = getFunctions(app);
 
 // ID global de l'application pour tes collections Firestore
 export const APP_ID = "botola-v1";

@@ -1,81 +1,367 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Admin API monitoring (read-only for authenticated admins)
-    match /artifacts/{appId}/admin/api_monitoring/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if false; // Only Cloud Functions can write
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
-
-    // Feature Flags - read-only for all authenticated users, write for admins only
-    match /artifacts/{appId}/config/feature_flags/environments/{environment} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null; // TODO: Add admin role check
+    
+    // Check if user is admin (reads from user profile)
+    // IMPORTANT: To grant admin access, manually set isAdmin: true in Firestore:
+    // artifacts/botola-v1/users/{userId}/data/profile
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/data/profile).data.isAdmin == true;
     }
-
-    // Feature Flags change logs - read-only for admins
-    match /artifacts/{appId}/config/feature_flags/logs/{logId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null; // TODO: Add admin role check
-      allow update, delete: if false;
+    
+    // Check if user is the owner of the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
-
-    // Analytics - Champion Variance (read-only for authenticated users, write for system only)
+    
+    // Check if resource belongs to authenticated user
+    function belongsToUser() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+    
+    // Check if incoming data belongs to authenticated user
+    function incomingBelongsToUser() {
+      return isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+    }
+    
+    // Validate that coins are not being modified directly (only through transactions)
+    function coinsNotModified() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['coins']);
+    }
+    
+    // Check if seller owns the card being listed
+    function sellerOwnsCard(cardId) {
+      return exists(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/cards/$(cardId)) &&
+             get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/cards/$(cardId)).data.owner_id == request.auth.uid;
+    }
+    
+    // ============================================
+    // USER DATA - PRIVATE PER USER
+    // ============================================
+    
+    match /artifacts/{appId}/users/{userId} {
+      // User profile - users can read/write their own, admins can read all
+      match /data/profile {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && 
+                         request.resource.data.uid == userId &&
+                         (!request.resource.data.keys().hasAny(['isAdmin']) || request.resource.data.isAdmin == false);
+        allow update: if isOwner(userId) && 
+                         request.resource.data.uid == userId &&
+                         // Prevent users from making themselves admin
+                         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']) || 
+                          isAdmin()); // Admins can modify admin status
+        allow delete: if false; // Profiles cannot be deleted
+      }
+      
+      // User predictions - users can read/write their own, admins can read all
+      match /predictions/{predictionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && 
+                         request.resource.data.userId == userId;
+        allow update: if isOwner(userId) && 
+                         resource.data.userId == userId &&
+                         request.resource.data.userId == userId;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+      
+      // User cards (marketplace) - users can read their own, others can read for verification
+      match /cards/{cardId} {
+        allow read: if isAuthenticated(); // Public read for marketplace verification
+        allow create: if false; // Only Cloud Functions can create cards (from pack opening)
+        allow update: if isOwner(userId) && 
+                         resource.data.owner_id == userId &&
+                         request.resource.data.owner_id == userId &&
+                         // Prevent modification of locked cards
+                         (!resource.data.is_locked || request.resource.data.is_locked == true);
+        allow delete: if false; // Cards cannot be deleted
+      }
+      
+      // User fantasy lineups - users can read/write their own
+      match /lineups/{lineupId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && 
+                         request.resource.data.user_id == userId;
+        allow update: if isOwner(userId) && 
+                         resource.data.user_id == userId &&
+                         request.resource.data.user_id == userId &&
+                         // Prevent modification of locked lineups
+                         resource.data.status != 'LOCKED';
+        allow delete: if isOwner(userId) && resource.data.status == 'DRAFT';
+      }
+      
+      // User blitz entries - users can read their own, others can read for leaderboard
+      match /blitz_entries/{entryId} {
+        allow read: if isAuthenticated(); // Public read for leaderboards
+        allow create: if false; // Only Cloud Functions can create entries (entry payment)
+        allow update: if false; // Only Cloud Functions can update (scoring)
+        allow delete: if false;
+      }
+      
+      // User favorites - users can read/write their own
+      match /favorites/{favoriteId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+      
+      // User settings - users can read/write their own
+      match /settings/{settingId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================
+    // PUBLIC DATA - SHARED ACROSS ALL USERS
+    // ============================================
+    
+    match /artifacts/{appId}/public/data {
+      // Matches - read for all authenticated, write for admins only
+      match /matches/{matchId} {
+        allow read: if isAuthenticated();
+        allow create: if isAdmin();
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+      
+      // Match events/timeline - read for all authenticated, write for system only
+      match /matches/{matchId}/events/{eventId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Only Cloud Functions
+      }
+      
+      // Market listings - read for all authenticated, create/update with ownership validation
+      match /market_listings/{listingId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && 
+                         request.resource.data.seller_id == request.auth.uid &&
+                         sellerOwnsCard(request.resource.data.card_id) &&
+                         request.resource.data.status == 'ACTIVE';
+        allow update: if isAuthenticated() && (
+                         // Seller can cancel
+                         (resource.data.seller_id == request.auth.uid && 
+                          resource.data.status == 'ACTIVE' &&
+                          request.resource.data.status == 'CANCELLED') ||
+                         // System can mark as sold
+                         false // Only Cloud Functions can mark as SOLD
+                      );
+        allow delete: if false; // Listings are cancelled, not deleted
+      }
+      
+      // Packs - read for all authenticated, write for admins only
+      match /packs/{packId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Player references - read for all authenticated, write for admins only
+      match /player_references/{playerId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Price history - read for all authenticated, write for system only
+      match /price_history/{playerId}/entries/{entryId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Only Cloud Functions
+      }
+      
+      // Gameweeks (fantasy) - read for all authenticated, write for admins only
+      match /gameweeks/{gameweekId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Blitz tournaments - read for all authenticated, write for admins only
+      match /blitz_tournaments/{tournamentId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Chat messages - read for all authenticated, create with validation
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && 
+                         request.resource.data.userId == request.auth.uid &&
+                         request.resource.data.pseudo == get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/data/profile).data.pseudo &&
+                         request.resource.data.timestamp != null;
+        allow update: if false; // Messages are immutable
+        allow delete: if isAdmin(); // Only admins can delete messages
+      }
+      
+      // Chat presence - read for all authenticated, write for own presence only
+      match /presence/{presenceId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated() && 
+                                 presenceId.matches('.*_' + request.auth.uid + '$');
+        allow delete: if isAuthenticated() && 
+                         presenceId.matches('.*_' + request.auth.uid + '$');
+      }
+      
+      // Leagues - read for all authenticated, write for admins only
+      match /leagues/{leagueId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Teams - read for all authenticated, write for admins only
+      match /teams/{teamId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      // Standings - read for all authenticated, write for system only
+      match /standings/{standingId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Only Cloud Functions
+      }
+      
+      // Admin logs - read for admins only, create for admins only
+      match /admin_logs/{logId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin() &&
+                         request.resource.data.adminId == request.auth.uid &&
+                         request.resource.data.timestamp != null;
+        allow update, delete: if false; // Logs are immutable
+      }
+    }
+    
+    // ============================================
+    // LEADERBOARD - TOP-LEVEL COLLECTION
+    // ============================================
+    
+    match /leaderboard/{userId} {
+      allow read: if isAuthenticated(); // Public read for leaderboard display
+      allow write: if false; // Only Cloud Functions can update leaderboard
+    }
+    
+    // ============================================
+    // ANALYTICS - READ-ONLY FOR AUTHENTICATED USERS
+    // ============================================
+    
     match /artifacts/{appId}/analytics/champion_variance/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if false; // Only backend/Cloud Functions can write
+      allow read: if isAuthenticated();
+      allow write: if false; // Only Cloud Functions can write analytics
     }
-
-    // Analytics - Bottom 50% Retention (read-only for authenticated users, write for system only)
+    
     match /artifacts/{appId}/analytics/bottom50_retention/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if false; // Only backend/Cloud Functions can write
+      allow read: if isAuthenticated();
+      allow write: if false; // Only Cloud Functions can write analytics
     }
-
-    // Sync Queue - read/write for authenticated users (admin context), system can write
-    match /artifacts/{appId}/admin/sync_queue/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+    
+    // ============================================
+    // ADMIN ENDPOINTS - ADMIN-ONLY ACCESS
+    // ============================================
+    
+    match /artifacts/{appId}/admin/api_monitoring/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false; // Only Cloud Functions can write
     }
-
-    // API Health Status - read for authenticated users, write for system only
+    
     match /artifacts/{appId}/admin/api_health/{document=**} {
-      allow read: if request.auth != null;
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
-    // Marketplace Error Monitoring - read for authenticated admins, write for system only
+    
+    match /artifacts/{appId}/admin/sync_queue/{document=**} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // ============================================
+    // FEATURE FLAGS - READ FOR ALL, WRITE FOR ADMINS
+    // ============================================
+    
+    match /artifacts/{appId}/config/feature_flags/environments/{environment} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /artifacts/{appId}/config/feature_flags/logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() &&
+                       request.resource.data.adminId == request.auth.uid &&
+                       request.resource.data.timestamp != null;
+      allow update, delete: if false; // Logs are immutable
+    }
+    
+    // ============================================
+    // MARKETPLACE ERROR MONITORING - ADMIN-ONLY
+    // ============================================
+    
     match /artifacts/{appId}/monitoring/marketplace_errors/errors/{errorId} {
-      allow read: if request.auth != null; // TODO: Add admin role check
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
+    
     match /artifacts/{appId}/monitoring/marketplace_errors/rollbacks/{rollbackId} {
-      allow read: if request.auth != null; // TODO: Add admin role check
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
+    
     match /artifacts/{appId}/monitoring/marketplace_errors/duplicate_attempts/{attemptId} {
-      allow read: if request.auth != null; // TODO: Add admin role check
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
+    
     match /artifacts/{appId}/monitoring/marketplace_errors/alerts/{alertId} {
-      allow read: if request.auth != null; // TODO: Add admin role check
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
+    
     match /artifacts/{appId}/monitoring/marketplace_errors/counters/{functionName} {
-      allow read: if request.auth != null; // TODO: Add admin role check
+      allow read: if isAdmin();
       allow write: if false; // Only Cloud Functions can write
     }
-
-    // Temporary open access (TODO: Implement proper security rules)
+    
+    // ============================================
+    // SHOP ITEMS - READ FOR ALL, WRITE FOR ADMINS
+    // ============================================
+    
+    match /artifacts/{appId}/public/data/shop_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // ============================================
+    // NOTIFICATIONS - USER-SPECIFIC
+    // ============================================
+    
+    match /artifacts/{appId}/users/{userId}/notifications/{notificationId} {
+      allow read: if isOwner(userId);
+      allow create: if false; // Only Cloud Functions can create notifications
+      allow update: if isOwner(userId); // Users can mark as read
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // REFERRALS - READ FOR VALIDATION, WRITE FOR SYSTEM
+    // ============================================
+    
+    match /artifacts/{appId}/referrals/{referralCode} {
+      allow read: if isAuthenticated(); // Users need to validate referral codes
+      allow write: if false; // Only Cloud Functions can manage referrals
+    }
+    
+    // ============================================
+    // DENY ALL OTHER PATHS
+    // ============================================
+    
+    // Explicitly deny access to any paths not matched above
     match /{document=**} {
-      allow read, write: if
-          request.time < timestamp.date(2030, 12, 31);
+      allow read, write: if false;
     }
   }
 }

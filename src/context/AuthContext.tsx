@@ -10,6 +10,7 @@ interface AuthContextType {
     profile: UserProfile | null;
     loading: boolean;
     isOnboarding: boolean; // <-- NOUVEAU : Dit si on doit afficher l'écran de bienvenue
+    isAdmin: boolean; // <-- NOUVEAU : Dit si l'utilisateur est admin
     completeOnboarding: (pseudo: string, referralCode?: string) => Promise<void>; // <-- NOUVEAU : Action pour valider le pseudo
 }
 
@@ -81,12 +82,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             referredBy: isReferred ? referralCodeInput : null,
             lastDailyBonus: 0,
             dailyShareCount: 0,
-            lastShareDate: ''
+            lastShareDate: '',
+            isAdmin: false // Default to non-admin user
         });
     };
 
+    // Compute isAdmin from profile
+    const isAdmin = profile?.isAdmin === true;
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading, isOnboarding, completeOnboarding }}>
+        <AuthContext.Provider value={{ user, profile, loading, isOnboarding, isAdmin, completeOnboarding }}>
             {children}
         </AuthContext.Provider>
     );

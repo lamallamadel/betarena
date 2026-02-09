@@ -16,6 +16,7 @@ export interface UserProfile {
   xp: number;
   dailyShareCount: number;
   lastShareDate: string;
+  isAdmin?: boolean; // Role-based access control flag
   // Optional extended fields
   id?: string;
   avatar?: string;

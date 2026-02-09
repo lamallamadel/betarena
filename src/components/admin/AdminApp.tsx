@@ -2,19 +2,19 @@ import React, { useState } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { AdminDashboard } from './AdminDashboard';
 import { AdminMatchList } from './AdminMatchList';
+import { AdminUserManagement } from './AdminUserManagement';
 import { MatchOverrideModal } from './MatchOverrideModal';
 import { useAdmin } from '../../hooks/useAdmin';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminApp: React.FC = () => {
-    const { user: authUser, profile } = useAuth();
+    const { user: authUser, profile, isAdmin } = useAuth();
     const [currentView, setCurrentView] = useState('dashboard');
     const [overrideModalOpen, setOverrideModalOpen] = useState(false);
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
     const [selectedMatchInfo, setSelectedMatchInfo] = useState<any>(null);
-
-    // Mock admin user (in production, verify from Firestore admin_users collection)
-    const adminUser = authUser ? {
+    
+    const adminUser = (authUser && isAdmin) ? {
         uid: authUser.uid,
         name: profile?.pseudo || 'Admin',
         role: 'SUPER_ADMIN' as const
@@ -54,11 +54,13 @@ export const AdminApp: React.FC = () => {
         window.location.href = '/'; // Return to main app
     };
 
-    if (!authUser) {
+    if (!authUser || !isAdmin) {
         return (
             <div className="h-screen bg-slate-950 flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-slate-400 mb-4">Vous devez être connecté pour accéder à l'admin.</p>
+                    <p className="text-slate-400 mb-4">
+                        {!authUser ? 'Vous devez être connecté pour accéder à l\'admin.' : 'Accès refusé. Droits administrateur requis.'}
+                    </p>
                     <button
                         onClick={() => window.location.href = '/'}
                         className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500"
@@ -83,11 +85,7 @@ export const AdminApp: React.FC = () => {
                     />
                 );
             case 'users':
-                return (
-                    <div className="flex items-center justify-center h-64 bg-slate-900 rounded-2xl border border-slate-800">
-                        <p className="text-slate-500 font-medium">Module Utilisateurs - À venir</p>
-                    </div>
-                );
+                return <AdminUserManagement />;
             case 'marketing':
                 return (
                     <div className="flex items-center justify-center h-64 bg-slate-900 rounded-2xl border border-slate-800">
