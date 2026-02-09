@@ -5,7 +5,7 @@ import { Layout, MessageSquare, Trophy, Swords, User } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 // import { useMatch } from './hooks/useMatch';
-import { useBetting } from './hooks/useBetting';
+import { useBetting } from './features/betting';
 import { useGamification } from './hooks/useGamification';
 
 // Components (Views)

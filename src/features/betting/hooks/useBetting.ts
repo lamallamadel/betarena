@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { doc, runTransaction, collection, onSnapshot, setDoc, getDocs, query, where } from 'firebase/firestore';
-import { db, APP_ID } from '../config/firebase';
-import type { MatchStatus, PredictionType, ChampionVarianceData } from "../types/types";
+import { db, APP_ID } from '../../../config/firebase';
+import type { Match, MatchStatus } from '../../match';
+import type { PredictionType, ChampionVarianceData } from '../../../types/types';
 
 // RG-A03 & RG-B02 : Coûts et gains (Mode Forfait pour l'instant)
 const RULES = {
