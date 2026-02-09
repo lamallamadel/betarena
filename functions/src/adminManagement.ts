@@ -18,7 +18,7 @@ async function isAdmin(userId: string): Promise<boolean> {
     const profileDoc = await admin.firestore()
       .doc(`artifacts/${APP_ID}/users/${userId}/data/profile`)
       .get();
-    
+
     return profileDoc.exists && profileDoc.data()?.isAdmin === true;
   } catch (error) {
     console.error('Error checking admin status:', error);
@@ -33,11 +33,11 @@ async function getUserProfile(userId: string) {
   const profileDoc = await admin.firestore()
     .doc(`artifacts/${APP_ID}/users/${userId}/data/profile`)
     .get();
-  
+
   if (!profileDoc.exists) {
     throw new functions.https.HttpsError('not-found', 'User profile not found');
   }
-  
+
   return profileDoc.data();
 }
 
@@ -73,11 +73,11 @@ async function logAdminAction(
  */
 export const grantAdminAccess = functions.https.onCall(async (request) => {
   const callerId = request.auth?.uid;
-  
+
   if (!callerId) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
-  
+
   // Verify caller is admin
   const callerIsAdmin = await isAdmin(callerId);
   if (!callerIsAdmin) {
@@ -86,25 +86,25 @@ export const grantAdminAccess = functions.https.onCall(async (request) => {
       'Only admins can grant admin access'
     );
   }
-  
+
   const { targetUserId } = request.data;
-  
+
   if (!targetUserId) {
     throw new functions.https.HttpsError('invalid-argument', 'targetUserId is required');
   }
-  
+
   // Get caller and target profiles
   const callerProfile = await getUserProfile(callerId);
   const targetProfile = await getUserProfile(targetUserId);
-  
+
   // Check if target is already admin
-  if (targetProfile.isAdmin === true) {
+  if (targetProfile && targetProfile.isAdmin === true) {
     return {
       success: false,
       message: 'User is already an admin',
     };
   }
-  
+
   // Grant admin access
   await admin.firestore()
     .doc(`artifacts/${APP_ID}/users/${targetUserId}/data/profile`)
@@ -113,23 +113,23 @@ export const grantAdminAccess = functions.https.onCall(async (request) => {
       adminGrantedAt: admin.firestore.FieldValue.serverTimestamp(),
       adminGrantedBy: callerId,
     });
-  
+
   // Log the action
   await logAdminAction(
     callerId,
-    callerProfile.pseudo || 'Unknown Admin',
+    callerProfile?.pseudo || 'Unknown Admin',
     'GRANT_ADMIN',
     targetUserId,
     {
-      targetPseudo: targetProfile.pseudo,
+      targetPseudo: targetProfile?.pseudo,
     }
   );
-  
+
   console.log(`Admin access granted to ${targetUserId} by ${callerId}`);
-  
+
   return {
     success: true,
-    message: `Admin access granted to ${targetProfile.pseudo}`,
+    message: `Admin access granted to ${targetProfile?.pseudo}`,
   };
 });
 
@@ -143,11 +143,11 @@ export const grantAdminAccess = functions.https.onCall(async (request) => {
  */
 export const revokeAdminAccess = functions.https.onCall(async (request) => {
   const callerId = request.auth?.uid;
-  
+
   if (!callerId) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
-  
+
   // Verify caller is admin
   const callerIsAdmin = await isAdmin(callerId);
   if (!callerIsAdmin) {
@@ -156,13 +156,13 @@ export const revokeAdminAccess = functions.https.onCall(async (request) => {
       'Only admins can revoke admin access'
     );
   }
-  
+
   const { targetUserId } = request.data;
-  
+
   if (!targetUserId) {
     throw new functions.https.HttpsError('invalid-argument', 'targetUserId is required');
   }
-  
+
   // Prevent self-revocation
   if (targetUserId === callerId) {
     throw new functions.https.HttpsError(
@@ -170,19 +170,19 @@ export const revokeAdminAccess = functions.https.onCall(async (request) => {
       'Cannot revoke your own admin access'
     );
   }
-  
+
   // Get caller and target profiles
   const callerProfile = await getUserProfile(callerId);
   const targetProfile = await getUserProfile(targetUserId);
-  
+
   // Check if target is actually admin
-  if (targetProfile.isAdmin !== true) {
+  if (targetProfile && targetProfile.isAdmin !== true) {
     return {
       success: false,
       message: 'User is not an admin',
     };
   }
-  
+
   // Revoke admin access
   await admin.firestore()
     .doc(`artifacts/${APP_ID}/users/${targetUserId}/data/profile`)
@@ -191,23 +191,23 @@ export const revokeAdminAccess = functions.https.onCall(async (request) => {
       adminRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
       adminRevokedBy: callerId,
     });
-  
+
   // Log the action
   await logAdminAction(
     callerId,
-    callerProfile.pseudo || 'Unknown Admin',
+    callerProfile?.pseudo || 'Unknown Admin',
     'REVOKE_ADMIN',
     targetUserId,
     {
-      targetPseudo: targetProfile.pseudo,
+      targetPseudo: targetProfile?.pseudo,
     }
   );
-  
+
   console.log(`Admin access revoked from ${targetUserId} by ${callerId}`);
-  
+
   return {
     success: true,
-    message: `Admin access revoked from ${targetProfile.pseudo}`,
+    message: `Admin access revoked from ${targetProfile?.pseudo}`,
   };
 });
 
@@ -220,11 +220,11 @@ export const revokeAdminAccess = functions.https.onCall(async (request) => {
  */
 export const listAdmins = functions.https.onCall(async (request) => {
   const callerId = request.auth?.uid;
-  
+
   if (!callerId) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
-  
+
   // Verify caller is admin
   const callerIsAdmin = await isAdmin(callerId);
   if (!callerIsAdmin) {
@@ -233,13 +233,13 @@ export const listAdmins = functions.https.onCall(async (request) => {
       'Only admins can list admin users'
     );
   }
-  
+
   // Query all users with isAdmin: true
   const usersSnapshot = await admin.firestore()
     .collectionGroup('profile')
     .where('isAdmin', '==', true)
     .get();
-  
+
   const admins = usersSnapshot.docs.map(doc => ({
     uid: doc.data().uid,
     pseudo: doc.data().pseudo,
@@ -247,7 +247,7 @@ export const listAdmins = functions.https.onCall(async (request) => {
     adminGrantedAt: doc.data().adminGrantedAt,
     adminGrantedBy: doc.data().adminGrantedBy,
   }));
-  
+
   return {
     admins,
     count: admins.length,
@@ -264,16 +264,16 @@ export const listAdmins = functions.https.onCall(async (request) => {
  */
 export const checkAdminStatus = functions.https.onCall(async (request) => {
   const callerId = request.auth?.uid;
-  
+
   if (!callerId) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
-  
+
   const { userId } = request.data;
   const targetUserId = userId || callerId;
-  
+
   const isUserAdmin = await isAdmin(targetUserId);
-  
+
   return {
     userId: targetUserId,
     isAdmin: isUserAdmin,
@@ -295,25 +295,25 @@ export async function validateMarketplaceTransaction(
     const cardDoc = await admin.firestore()
       .doc(`artifacts/${APP_ID}/users/${sellerId}/cards/${cardId}`)
       .get();
-    
+
     if (!cardDoc.exists) {
       return { valid: false, error: 'Card not found' };
     }
-    
+
     if (cardDoc.data()?.owner_id !== sellerId) {
       return { valid: false, error: 'Seller does not own the card' };
     }
-    
+
     if (cardDoc.data()?.is_locked) {
       return { valid: false, error: 'Card is locked' };
     }
-    
+
     // Verify buyer has enough coins
     const buyerProfile = await getUserProfile(buyerId);
-    if (buyerProfile.coins < price) {
+    if (!buyerProfile || (buyerProfile.coins || 0) < price) {
       return { valid: false, error: 'Insufficient coins' };
     }
-    
+
     return { valid: true };
   } catch (error) {
     console.error('Error validating marketplace transaction:', error);
@@ -331,11 +331,11 @@ export async function validateUserOwnership(
 ): Promise<boolean> {
   try {
     const resourceDoc = await admin.firestore().doc(resourcePath).get();
-    
+
     if (!resourceDoc.exists) {
       return false;
     }
-    
+
     const data = resourceDoc.data();
     return (
       data?.userId === userId ||
